@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0b0d;
+  --foreground: #e8eaed;
+  --card: #12141a;
+  --card-hover: #1a1d26;
+  --border: #2a2d38;
+  --accent: #00d4aa;
+  --accent-muted: #00a884;
+  --muted: #6b7280;
+  --destructive: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .gradient-text {
+    @apply bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent;
+  }
+}
+
+/* Smooth number animation for counters */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-count {
+  animation: count-up 0.5s ease-out forwards;
+}
+
+/* Premium fintech dashboard */
+.dashboard-card {
+  background: linear-gradient(165deg, var(--card) 0%, #0d0e12 100%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}

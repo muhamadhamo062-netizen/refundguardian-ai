@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "RefundGuardian AI",
+  "version": "1.0.0",
+  "description": "Automated compensation assistant — monitors delivery orders and requests compensation on your behalf.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.amazon.com/*",
+    "https://*.uber.com/*",
+    "https://*.ubereats.com/*",
+    "https://*.doordash.com/*",
+    "https://*.grubhub.com/*",
+    "http://localhost:3000/*",
+    "https://*.vercel.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "RefundGuardian AI"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.amazon.com/*",
+        "https://*.uber.com/*",
+        "https://*.ubereats.com/*",
+        "https://*.doordash.com/*",
+        "https://*.grubhub.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
