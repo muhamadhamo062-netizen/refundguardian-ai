@@ -146,18 +146,20 @@ export default async function DashboardPage() {
   const safeReceipts = receipts ?? [];
   const safeClaims = claims ?? [];
   const safeOpportunities = (opportunities ?? []).map((o) => {
-    const orders = o.orders as { merchant_name: string | null; order_date: string | null }[];
+    // ensure orders is always an array
+    const ordersArray = Array.isArray(o.orders) ? o.orders : [];
+
     return {
       id: o.id,
-      merchant_name: orders?.[0]?.merchant_name ?? null,
-      order_date: orders?.[0]?.order_date ?? null,
+      merchant_name: ordersArray[0]?.merchant_name ?? null,
+      order_date: ordersArray[0]?.order_date ?? null,
       potential_refund_cents: o.potential_refund_cents,
       currency: o.currency,
       status: o.status as 'open' | 'claimed' | 'refunded' | 'dismissed',
       delay_minutes: o.delay_minutes,
       created_at:
-        typeof (o as { created_at?: string }).created_at === 'string'
-          ? (o as { created_at: string }).created_at
+        typeof o.created_at === 'string'
+          ? o.created_at
           : '',
     };
   });
