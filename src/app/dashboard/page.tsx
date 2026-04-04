@@ -63,6 +63,71 @@ export default async function DashboardPage() {
 
   const billingProfile: UserBillingRow | null = billingRow;
 
+  const uid = user?.id;
+
+  const [
+    mainData,
+    orderCountsData,
+  ] = await Promise.all([
+    Promise.all([
+      supabase
+        .from('refund_history')
+        .select('id, amount_cents, currency, provider, completed_at')
+        .order('completed_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('receipts')
+        .select('id, source, order_id, status, amount_cents, currency, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase
+        .from('claims')
+        .select('id, status, amount_cents, currency, created_at, provider')
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase
+        .from('detected_refunds')
+        .select(
+          'id, created_at, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date)'
+        )
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase
+        .from('orders')
+        .select('id, merchant_name, order_id, provider, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('extension_sync_events')
+        .select('id, event_type, order_count, created_at')
+        .order('created_at', { ascending: false })
+        .limit(15),
+    ]),
+    uid
+      ? Promise.all([
+          supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', uid)
+            .eq('provider', 'amazon'),
+          supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', uid)
+            .eq('provider', 'uber'),
+          supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', uid)
+            .in('provider', ['uber_eats', 'doordash', 'other']),
+        ])
+      : Promise.resolve([
+          { count: 0 as number | null },
+          { count: 0 as number | null },
+          { count: 0 as number | null },
+        ]),
+  ]);
+
   const [
     { data: refunds },
     { data: receipts },
@@ -70,54 +135,22 @@ export default async function DashboardPage() {
     { data: opportunities },
     { data: recentOrders },
     { data: extensionSyncs },
-  ] = await Promise.all([
-    supabase
-      .from('refund_history')
-      .select('id, amount_cents, currency, provider, completed_at')
-      .order('completed_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('receipts')
-      .select('id, source, order_id, status, amount_cents, currency, created_at')
-      .order('created_at', { ascending: false })
-      .limit(100),
-    supabase
-      .from('claims')
-      .select('id, status, amount_cents, currency, created_at, provider')
-      .order('created_at', { ascending: false })
-      .limit(100),
-    supabase
-      .from('detected_refunds')
-      .select(
-        'id, created_at, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date)'
-      )
-      .order('created_at', { ascending: false })
-      .limit(5),
-    supabase
-      .from('orders')
-      .select('id, merchant_name, order_id, provider, created_at')
-      .order('created_at', { ascending: false })
-      .limit(20),
-    supabase
-      .from('extension_sync_events')
-      .select('id, event_type, order_count, created_at')
-      .order('created_at', { ascending: false })
-      .limit(15),
-  ]);
+  ] = mainData;
+
+  const [deliveryOrderCountRes, rideOrderCountRes, foodOrderCountRes] = orderCountsData;
+  const deliveryOrderCount = deliveryOrderCountRes.count ?? 0;
+  const rideOrderCount = rideOrderCountRes.count ?? 0;
+  const foodOrderCount = foodOrderCountRes.count ?? 0;
 
   const safeRefunds = refunds ?? [];
   const safeReceipts = receipts ?? [];
   const safeClaims = claims ?? [];
   const safeOpportunities = (opportunities ?? []).map((o) => {
-    const orders = o.orders as
-      | { merchant_name: string | null; order_date: string | null }[]
-      | null
-      | undefined;
-    const firstOrder = Array.isArray(orders) && orders.length > 0 ? orders[0] : null;
+    const orders = o.orders as { merchant_name: string | null; order_date: string | null }[];
     return {
       id: o.id,
-      merchant_name: firstOrder?.merchant_name ?? null,
-      order_date: firstOrder?.order_date ?? null,
+      merchant_name: orders?.[0]?.merchant_name ?? null,
+      order_date: orders?.[0]?.order_date ?? null,
       potential_refund_cents: o.potential_refund_cents,
       currency: o.currency,
       status: o.status as 'open' | 'claimed' | 'refunded' | 'dismissed',
@@ -170,6 +203,11 @@ export default async function DashboardPage() {
     const p = providerLower((c as { provider?: string }).provider);
     return p.includes('eats') || p.includes('doordash') || p.includes('food');
   });
+
+  /** Extension + IMAP write to `orders`; legacy email flow may only fill `receipts`. Use the higher of the two so the first client sees real “orders scanned” counts. */
+  const deliveryOrdersScanned = Math.max(deliveryReceipts.length, deliveryOrderCount);
+  const rideOrdersScanned = Math.max(rideReceipts.length, rideOrderCount);
+  const orderCompOrdersScanned = Math.max(orderReceipts.length, foodOrderCount);
 
   const ordersForFeed = (recentOrders ?? []).filter((o) => {
     const oid = o.order_id != null ? String(o.order_id) : '';
@@ -252,9 +290,7 @@ export default async function DashboardPage() {
           <strong className="font-semibold text-zinc-300">desktop</strong>, use the Chrome extension. Both save under your
           same account so orders stay in one place.
         </p>
-        <Deferred>
-          <ConnectionSetupSection variant="dashboard" />
-        </Deferred>
+        <ConnectionSetupSection variant="dashboard" />
       </section>
 
       <Deferred>
@@ -328,7 +364,7 @@ export default async function DashboardPage() {
           <MonitorCard
             title="Delivery Delay Monitor"
             icon={<DeliveryIcon />}
-            ordersScanned={deliveryReceipts.length}
+            ordersScanned={deliveryOrdersScanned}
             claimsSubmitted={deliveryClaims.length}
             refundsRecovered={deliveryRefunds.length}
             accentColor="emerald"
@@ -336,7 +372,7 @@ export default async function DashboardPage() {
           <MonitorCard
             title="Ride Delay Monitor"
             icon={<RideIcon />}
-            ordersScanned={rideReceipts.length}
+            ordersScanned={rideOrdersScanned}
             claimsSubmitted={rideClaims.length}
             refundsRecovered={rideRefunds.length}
             accentColor="amber"
@@ -344,7 +380,7 @@ export default async function DashboardPage() {
           <MonitorCard
             title="Order Compensation Monitor"
             icon={<OrderIcon />}
-            ordersScanned={orderReceipts.length}
+            ordersScanned={orderCompOrdersScanned}
             claimsSubmitted={orderClaims.length}
             refundsRecovered={orderRefunds.length}
             accentColor="violet"
