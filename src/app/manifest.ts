@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'RefundGuardian AI',
     short_name: 'RefundGuardian',
     description:
-      'Stop losing money on late deliveries. Our AI scans receipts, detects delays, and files refund claims for you.',
+      'Stop losing money on late deliveries. Autonomous Compensation Engine scans orders, detects issues, and calculates compensation automatically.',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',
@@ -13,19 +13,19 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#0a0b0d',
     icons: [
       {
-        src: '/icon-192.png',
+        src: '/icon-192.svg',
         sizes: '192x192',
-        type: 'image/png',
+        type: 'image/svg+xml',
       },
       {
-        src: '/icon-512.png',
+        src: '/icon-512.svg',
         sizes: '512x512',
-        type: 'image/png',
+        type: 'image/svg+xml',
       },
       {
-        src: '/icon-512-maskable.png',
+        src: '/icon-512-maskable.svg',
         sizes: '512x512',
-        type: 'image/png',
+        type: 'image/svg+xml',
         purpose: 'maskable',
       },
     ],

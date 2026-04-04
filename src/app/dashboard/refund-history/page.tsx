@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RefundHistoryPage() {
   const supabase = await createClient();
   const { data: refunds } = await supabase
@@ -10,20 +12,20 @@ export default async function RefundHistoryPage() {
     .limit(50);
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8 overflow-x-hidden">
       <div>
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">Refund History</h1>
+        <h1 className="text-2xl font-bold text-white sm:text-3xl">Compensation history</h1>
         <p className="mt-1 text-[var(--muted)]">
-          All refunds recovered by RefundGuardian AI.
+          Compensation recovered through RefundGuardian AI (Autonomous Compensation Engine).
         </p>
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         {!refunds || refunds.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-[var(--muted)]">No refunds yet.</p>
+            <p className="text-[var(--muted)]">No compensation recorded yet.</p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Connect your accounts and run a scan to start recovering money.
+              Connect your accounts and keep the agent running — recoveries appear here as they complete.
             </p>
             <Link
               href="/dashboard"
@@ -33,17 +35,17 @@ export default async function RefundHistoryPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[500px]">
+          <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-0 sm:min-w-[500px]">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-6 sm:py-4">
                     Date
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-6 sm:py-4">
                     Provider
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted)] sm:px-6 sm:py-4">
                     Amount
                   </th>
                 </tr>
@@ -54,13 +56,13 @@ export default async function RefundHistoryPage() {
                     key={refund.id}
                     className="border-b border-[var(--border)]/50 last:border-0 hover:bg-[var(--card-hover)]"
                   >
-                    <td className="px-6 py-4 text-sm text-white">
+                    <td className="px-3 py-3 text-sm text-white sm:px-6 sm:py-4">
                       {new Date(refund.completed_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[var(--foreground)]">
+                    <td className="px-3 py-3 text-sm break-words text-[var(--foreground)] sm:px-6 sm:py-4">
                       {refund.provider}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium text-[var(--accent)]">
+                    <td className="px-3 py-3 text-right text-sm font-medium text-[var(--accent)] sm:px-6 sm:py-4">
                       ${((refund.amount_cents ?? 0) / 100).toFixed(2)}
                     </td>
                   </tr>

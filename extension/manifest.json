@@ -1,39 +1,49 @@
 {
   "manifest_version": 3,
   "name": "RefundGuardian AI",
-  "version": "1.0.0",
-  "description": "Automated compensation assistant — monitors delivery orders and requests compensation on your behalf.",
-  "permissions": [
-    "activeTab",
-    "storage"
-  ],
+  "version": "1.1.11",
+  "description": "US-only: syncs orders from Amazon.com, Uber, Uber Eats, and DoorDash with RefundGuardian AI.",
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "alarms"],
   "host_permissions": [
-    "https://*.amazon.com/*",
-    "https://*.uber.com/*",
-    "https://*.ubereats.com/*",
-    "https://*.doordash.com/*",
-    "https://*.grubhub.com/*",
     "http://localhost:3000/*",
-    "https://*.vercel.app/*"
+    "http://127.0.0.1:3000/*",
+    "https://localhost:3000/*",
+    "https://127.0.0.1:3000/*",
+    "https://*.vercel.app/*",
+    "https://refundguardian.ai/*",
+    "https://www.refundguardian.ai/*",
+    "https://*.refundguardian.ai/*",
+    "*://*.amazon.com/*",
+    "*://*.uber.com/*",
+    "*://*.ubereats.com/*",
+    "*://*.doordash.com/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "RefundGuardian AI"
+    "default_title": "RefundGuardian AI",
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
       "matches": [
-        "https://*.amazon.com/*",
-        "https://*.uber.com/*",
-        "https://*.ubereats.com/*",
-        "https://*.doordash.com/*",
-        "https://*.grubhub.com/*"
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*",
+        "https://localhost:3000/*",
+        "https://127.0.0.1:3000/*",
+        "https://*.vercel.app/*",
+        "https://refundguardian.ai/*",
+        "https://www.refundguardian.ai/*",
+        "https://*.refundguardian.ai/*",
+        "*://*.amazon.com/*",
+        "*://*.uber.com/*",
+        "*://*.ubereats.com/*",
+        "*://*.doordash.com/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": false
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }

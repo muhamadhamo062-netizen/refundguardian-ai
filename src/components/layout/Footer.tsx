@@ -1,9 +1,10 @@
 import Link from 'next/link';
 
 const footerLinks = [
+  { href: '/about', label: 'About' },
   { href: '/privacy', label: 'Privacy Policy' },
   { href: '/terms', label: 'Terms of Service' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/support', label: 'Support' },
 ];
 
 export function Footer() {
@@ -11,7 +12,7 @@ export function Footer() {
     <footer className="border-t border-[var(--border)] bg-[var(--card)]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-          <p className="text-sm text-[var(--muted)]">
+          <p className="text-sm text-[var(--muted)]" translate="no" suppressHydrationWarning>
             © {new Date().getFullYear()} RefundGuardian AI. All rights reserved.
           </p>
           <ul className="flex flex-wrap items-center justify-center gap-6">

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block nav %}
+  <a href="/">Sign in</a>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Create account</h1>
+  <p class="muted">Each account has its own encrypted Gmail credentials and orders.</p>
+  <form id="f-reg" class="form">
+    <label>Email<input type="email" name="email" autocomplete="username" required /></label>
+    <label>Password <span class="hint">(min 8 characters)</span><input type="password" name="password" autocomplete="new-password" required minlength="8" /></label>
+    <button type="submit" class="btn primary">Register</button>
+  </form>
+  <p id="msg" class="msg" role="status"></p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('f-reg').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      email: fd.get('email'),
+      password: fd.get('password'),
+    }),
+  });
+  if (res.ok) {
+    window.location.href = '/dashboard';
+    return;
+  }
+  const j = await res.json().catch(() => ({}));
+  msg.textContent = j.detail || 'Registration failed';
+});
+</script>
+{% endblock %}

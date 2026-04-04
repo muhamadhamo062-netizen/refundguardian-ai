@@ -26,8 +26,9 @@ Edit `.env.local` and set:
 ### 2. Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Enable **Google** in Authentication → Providers.
-3. In the SQL Editor, run the migration script: `supabase/migrations/001_initial_schema.sql`
+2. Enable **Email** (and optionally other providers) in Authentication → Providers.
+3. Database: apply migrations in order (`supabase db push` or SQL Editor). Minimum for `/api/orders`: **`001_initial_schema.sql`**, then **`006_ensure_orders_complete.sql`**, then **`007_orders_user_id_auth_users.sql`** if an older migration created `orders` with a `public.users` FK.  
+   **Quick fix (no CLI):** paste **`supabase/quick_fix_orders.sql`** into the Supabase SQL Editor and run once. Then open **`GET /api/health`** — `ok` should be `true` and `db` should be `connected`.
 4. Add your site URL and redirect URL in Authentication → URL Configuration (e.g. `http://localhost:3000` and `http://localhost:3000/auth/callback`).
 
 ### 3. Install and run
@@ -50,7 +51,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Pages
 
 - **Landing** (`/`) – Hero, How It Works, Pricing, Footer
-- **Login** (`/login`) – Google sign-in only
+- **Login** (`/login`) – Email and password sign-in
 - **Dashboard** (`/dashboard`) – Total Recovered counter, Guardians, Activity Feed, Scan Last 30 Days
 - **Refund History** (`/dashboard/refund-history`) – Table of recovered refunds
 - **Pricing** (`/pricing`) – Three pricing cards
@@ -58,6 +59,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Database tables
 
 - `users` – Profile (synced from Supabase Auth)
+- `orders` – Normalized orders (extension + API); required for `/api/orders` and dashboard DB sync
 - `receipts` – Orders/deliveries from connected sources
 - `claims` – Refund claims filed by the system
 - `refund_history` – Completed refunds for reporting

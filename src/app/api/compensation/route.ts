@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createSupabaseClient } from '@/lib/supabase/api';
 import OpenAI from 'openai';
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const authHeader = request.headers.get('Authorization');
+  const bearer = authHeader?.match(/^Bearer\s+(.+)$/i);
+
+  const supabase = bearer
+    ? createSupabaseClient(bearer[1])
+    : createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -56,7 +62,35 @@ Request compensation for the delay. One short paragraph, polite but firm.`;
       max_tokens: 300,
     });
     const text = completion.choices[0]?.message?.content ?? null;
-    return NextResponse.json({ message: 'Generated', text, has_consent: hasConsent });
+
+    // Compute delay and, if delayed, store in detected_refunds
+    const promised = order.promised_delivery_time ? new Date(order.promised_delivery_time) : null;
+    const actual = order.actual_delivery_time ? new Date(order.actual_delivery_time) : null;
+    const isDelayed = promised && actual && actual > promised;
+    const delayMinutes = isDelayed && promised && actual
+      ? Math.round((actual.getTime() - promised.getTime()) / (1000 * 60))
+      : 0;
+
+    if (isDelayed) {
+      await supabase.from('detected_refunds').insert({
+        user_id: user.id,
+        order_id: order.id,
+        reason: 'Delayed delivery detected – AI generated compensation request',
+        delay_minutes: delayMinutes,
+        potential_refund_cents: order.order_value_cents ?? null,
+        currency: order.currency ?? 'USD',
+        status: 'open',
+        letter_text: text,
+      });
+    }
+
+    return NextResponse.json({
+      message: 'Generated',
+      text,
+      has_consent: hasConsent,
+      is_delayed: !!isDelayed,
+      delay_minutes: delayMinutes,
+    });
   }
 
   if (body.action === 'submit' && hasConsent) {

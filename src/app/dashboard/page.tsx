@@ -5,7 +5,21 @@ import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { RefundHistoryTable } from '@/components/dashboard/RefundHistoryTable';
 import { ScanButton } from '@/components/dashboard/ScanButton';
 import { RecoveredRefundOpportunities } from '@/components/dashboard/RecoveredRefundOpportunities';
-import { ExtensionToken } from '@/components/dashboard/ExtensionToken';
+import { ConnectionSetupSection } from '@/components/dashboard/ConnectionSetupSection';
+import { AmazonOrdersDashboard } from '@/components/dashboard/AmazonOrdersDashboard';
+import { SubscriptionStatusBar } from '@/components/dashboard/SubscriptionStatusBar';
+import { FirstRecoveryBanner } from '@/components/dashboard/FirstRecoveryBanner';
+import { CompensationPipelineCard } from '@/components/dashboard/CompensationPipelineCard';
+import type { UserBillingRow } from '@/lib/billing/plan';
+import { isFreeTrialAiLocked, isProSubscriber, maxAiOrdersForUser } from '@/lib/billing/plan';
+import { buildActivityFeedItems } from '@/lib/dashboard/buildActivityFeedItems';
+import { isExtensionSyncTableMissingError } from '@/lib/supabase/dbErrors';
+import { Migration014Banner } from '@/components/dashboard/Migration014Banner';
+import { DashboardHealthStrip } from '@/components/dashboard/DashboardHealthStrip';
+import { AiPriorityEngineTable } from '@/components/shared/AiPriorityEngineTable';
+import { Deferred } from '@/components/shared/Deferred';
+
+export const dynamic = 'force-dynamic';
 
 function DeliveryIcon() {
   return (
@@ -33,11 +47,29 @@ function OrderIcon() {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: billingRow } = user
+    ? await supabase
+        .from('users')
+        .select(
+          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
+        )
+        .eq('id', user.id)
+        .maybeSingle()
+    : { data: null };
+
+  const billingProfile: UserBillingRow | null = billingRow;
+
   const [
     { data: refunds },
     { data: receipts },
     { data: claims },
     { data: opportunities },
+    { data: recentOrders },
+    { data: extensionSyncs },
   ] = await Promise.all([
     supabase
       .from('refund_history')
@@ -57,30 +89,54 @@ export default async function DashboardPage() {
     supabase
       .from('detected_refunds')
       .select(
-        'id, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date)'
+        'id, created_at, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date)'
       )
       .order('created_at', { ascending: false })
       .limit(5),
+    supabase
+      .from('orders')
+      .select('id, merchant_name, order_id, provider, created_at')
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('extension_sync_events')
+      .select('id, event_type, order_count, created_at')
+      .order('created_at', { ascending: false })
+      .limit(15),
   ]);
 
   const safeRefunds = refunds ?? [];
   const safeReceipts = receipts ?? [];
   const safeClaims = claims ?? [];
-  const safeOpportunities = (opportunities ?? []).map((o: { id: string; potential_refund_cents: number | null; currency: string | null; status: string; delay_minutes: number | null; orders: { merchant_name: string | null; order_date: string | null } | null }) => ({
-    id: o.id,
-    merchant_name: o.orders?.merchant_name ?? null,
-    order_date: o.orders?.order_date ?? null,
-    potential_refund_cents: o.potential_refund_cents,
-    currency: o.currency,
-    status: o.status as 'open' | 'claimed' | 'refunded' | 'dismissed',
-    delay_minutes: o.delay_minutes,
-  }));
+  const safeOpportunities = (opportunities ?? []).map((o) => {
+    const orders = o.orders as
+      | { merchant_name: string | null; order_date: string | null }[]
+      | null
+      | undefined;
+    const firstOrder = Array.isArray(orders) && orders.length > 0 ? orders[0] : null;
+    return {
+      id: o.id,
+      merchant_name: firstOrder?.merchant_name ?? null,
+      order_date: firstOrder?.order_date ?? null,
+      potential_refund_cents: o.potential_refund_cents,
+      currency: o.currency,
+      status: o.status as 'open' | 'claimed' | 'refunded' | 'dismissed',
+      delay_minutes: o.delay_minutes,
+      created_at:
+        typeof (o as { created_at?: string }).created_at === 'string'
+          ? (o as { created_at: string }).created_at
+          : '',
+    };
+  });
 
   const totalRecoveredCents = safeRefunds.reduce(
     (sum, r) => sum + (r.amount_cents ?? 0),
     0
   );
   const totalRecovered = totalRecoveredCents / 100;
+
+  const pendingClaimsCount = safeClaims.filter((c) => c.status === 'pending').length;
+  const submittedClaimsCount = safeClaims.filter((c) => c.status === 'submitted').length;
 
   // Category breakdown for monitor cards (delivery = Amazon, ride = Uber, order = food / other)
   const deliveryReceipts = safeReceipts.filter((r) => r.source === 'amazon');
@@ -115,32 +171,26 @@ export default async function DashboardPage() {
     return p.includes('eats') || p.includes('doordash') || p.includes('food');
   });
 
-  const activityItems = [
-    {
-      id: '1',
-      type: 'scan' as const,
-      title: 'Scanning receipts...',
-      time: 'Just now',
-    },
-    {
-      id: '2',
-      type: 'check' as const,
-      title: 'Checking delivery times...',
-      time: '1m ago',
-    },
-    {
-      id: '3',
-      type: 'claim' as const,
-      title: 'Submitting refund claim...',
-      time: '5m ago',
-    },
-    {
-      id: '4',
-      type: 'refund' as const,
-      title: 'Refund confirmed.',
-      time: '12m ago',
-    },
-  ];
+  const ordersForFeed = (recentOrders ?? []).filter((o) => {
+    const oid = o.order_id != null ? String(o.order_id) : '';
+    if (oid.startsWith('rg-seed-')) return false;
+    if (String(o.merchant_name || '').includes('Welcome — connect')) return false;
+    return true;
+  });
+
+  const activityItems = buildActivityFeedItems({
+    orders: ordersForFeed,
+    receipts: safeReceipts.slice(0, 25),
+    claims: safeClaims.slice(0, 25),
+    refunds: safeRefunds.slice(0, 15),
+    opportunities: safeOpportunities.map((o) => ({
+      id: o.id,
+      merchant_name: o.merchant_name,
+      delay_minutes: o.delay_minutes,
+      created_at: o.created_at,
+    })),
+    extensionSyncs: extensionSyncs ?? [],
+  });
 
   const refundHistoryRows = safeRefunds.map((r) => ({
     id: r.id,
@@ -151,31 +201,111 @@ export default async function DashboardPage() {
     status: 'Completed',
   }));
 
+  const isPro = isProSubscriber(billingProfile);
+
+  const { error: extSyncProbeErr } = await supabase
+    .from('extension_sync_events')
+    .select('id')
+    .limit(1);
+  const migration014Missing = !!(
+    extSyncProbeErr && isExtensionSyncTableMissingError(extSyncProbeErr)
+  );
+
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="min-h-screen min-w-0 overflow-x-hidden bg-[var(--background)]">
+      <div className="mb-4 space-y-3">
+        <Migration014Banner show={migration014Missing} />
+        <DashboardHealthStrip />
+      </div>
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Dashboard
           </h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Your refund control center
+            Outcomes, insights, and activity
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ExtensionToken />
+        <div className="flex w-full min-w-0 flex-wrap items-stretch gap-3 sm:w-auto sm:items-center sm:justify-end">
           <ScanButton />
         </div>
       </div>
 
-      {/* Top: Total Refunds Recovered — large animated counter */}
+      {user ? (
+        <div className="mt-5">
+          <FirstRecoveryBanner
+            userId={user.id}
+            totalCents={totalRecoveredCents}
+            refundCount={safeRefunds.length}
+            isPro={isPro}
+          />
+        </div>
+      ) : null}
+
+      <section className="mt-6" aria-labelledby="dashboard-setup-heading">
+        <h2 id="dashboard-setup-heading" className="sr-only">
+          Connect orders — extension or Gmail
+        </h2>
+        <p className="mb-2 text-xs font-medium text-zinc-400">
+          On <strong className="font-semibold text-zinc-300">mobile</strong>, connect Gmail with an App Password. On{' '}
+          <strong className="font-semibold text-zinc-300">desktop</strong>, use the Chrome extension. Both save under your
+          same account so orders stay in one place.
+        </p>
+        <Deferred>
+          <ConnectionSetupSection variant="dashboard" />
+        </Deferred>
+      </section>
+
+      <Deferred>
+        <CompensationPipelineCard />
+      </Deferred>
+
+      <div id="plan">
+        <Deferred>
+          <SubscriptionStatusBar initialProfile={billingProfile} />
+        </Deferred>
+      </div>
+
       <section className="mt-8 sm:mt-10">
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--card)] via-[var(--card)] to-[#0a0c10] p-8 shadow-2xl shadow-black/30 sm:p-10">
+        <Deferred>
+          <AiPriorityEngineTable />
+        </Deferred>
+      </section>
+
+      <section className="mt-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)]/60 px-4 py-4 sm:grid-cols-2">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">In progress</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-amber-200">{pendingClaimsCount}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Agent processed</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-violet-200">{submittedClaimsCount}</p>
+        </div>
+      </section>
+
+      <Deferred
+        fallback={
+          <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
+            Loading orders…
+          </div>
+        }
+      >
+        <AmazonOrdersDashboard
+          maxAiOrdersPerBatch={maxAiOrdersForUser(billingProfile)}
+          isPro={isPro}
+          serverAutonomousMode={Boolean(billingProfile?.autonomous_mode_enabled)}
+          trialScanLocked={isFreeTrialAiLocked(billingProfile)}
+        />
+      </Deferred>
+
+      {/* Total Refunds Recovered — KPI strip */}
+      <section className="mt-8 sm:mt-10">
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--card)] via-[var(--card)] to-[#0a0c10] p-6 shadow-2xl shadow-black/30 sm:p-8 md:p-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--accent)/8%,transparent)]" />
           <div className="relative">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-              Total Refunds Recovered
+              Total Compensation Recovered
             </p>
             <p className="mt-3 text-4xl font-bold tabular-nums text-[var(--accent)] drop-shadow-sm sm:text-5xl md:text-6xl lg:text-7xl">
               <AnimatedCounter
@@ -186,7 +316,7 @@ export default async function DashboardPage() {
               />
             </p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              All time · Powered by RefundGuardian AI
+              All time · RefundRadar AI
             </p>
           </div>
         </div>
@@ -212,7 +342,7 @@ export default async function DashboardPage() {
             accentColor="amber"
           />
           <MonitorCard
-            title="Order Refund Monitor"
+            title="Order Compensation Monitor"
             icon={<OrderIcon />}
             ordersScanned={orderReceipts.length}
             claimsSubmitted={orderClaims.length}

@@ -22,7 +22,7 @@ export function RefundHistoryTable({ rows, maxRows = 10 }: RefundHistoryTablePro
     <div className="rounded-xl border border-[var(--border)] bg-gradient-to-b from-[var(--card)] to-[#0d0e12] shadow-lg shadow-black/20 overflow-hidden">
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4 sm:px-6">
         <div>
-          <h3 className="text-sm font-semibold text-white">Refund History</h3>
+          <h3 className="text-sm font-semibold text-white">Compensation history</h3>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
             Provider, amount, date, and status
           </p>
@@ -36,8 +36,8 @@ export function RefundHistoryTable({ rows, maxRows = 10 }: RefundHistoryTablePro
           </Link>
         )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[400px]">
+      <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        <table className="w-full min-w-0 sm:min-w-[400px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-white/[0.02]">
               <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
@@ -58,7 +58,7 @@ export function RefundHistoryTable({ rows, maxRows = 10 }: RefundHistoryTablePro
             {displayRows.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-[var(--muted)] sm:px-6">
-                  No refunds yet. Run a scan to start recovering money.
+                  No compensation recorded yet. The engine keeps running — amounts appear here when applied.
                 </td>
               </tr>
             ) : (
@@ -68,7 +68,16 @@ export function RefundHistoryTable({ rows, maxRows = 10 }: RefundHistoryTablePro
                   className="border-b border-[var(--border)]/50 last:border-0 transition-colors hover:bg-white/[0.02]"
                 >
                   <td className="px-4 py-3 text-sm font-medium text-white sm:px-6">
-                    {row.provider}
+                    <span className="break-words">{row.provider}</span>
+                    <span className="mt-0.5 block text-xs text-[var(--muted)] sm:hidden">
+                      {row.completed_at
+                        ? new Date(row.completed_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : '—'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-[var(--accent)] sm:px-6">
                     ${((row.amount_cents ?? 0) / 100).toFixed(2)}

@@ -19,14 +19,14 @@ export function RecoveredRefundOpportunities({ items, actions }: Props) {
   const hasItems = items.length > 0;
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-white">
-            Recovered Refund Opportunities
+            Recovered compensation opportunities
           </h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            We found money you may be owed from past orders.
+            Automatic detection surfaces compensation you may be owed from past orders.
           </p>
         </div>
         {actions}
@@ -37,8 +37,8 @@ export function RecoveredRefundOpportunities({ items, actions }: Props) {
           order pages to monitor deliveries automatically.
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="mt-4 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <table className="w-full min-w-0 text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="py-2 pr-4 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
@@ -51,7 +51,7 @@ export function RecoveredRefundOpportunities({ items, actions }: Props) {
                   Delay
                 </th>
                 <th className="py-2 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-                  Potential refund
+                  Potential compensation
                 </th>
               </tr>
             </thead>
@@ -61,7 +61,7 @@ export function RecoveredRefundOpportunities({ items, actions }: Props) {
                   key={item.id}
                   className="border-b border-[var(--border)]/60 last:border-0"
                 >
-                  <td className="py-2 pr-4 text-[var(--foreground)]">
+                  <td className="max-w-[min(100%,11rem)] py-2 pr-4 break-words text-[var(--foreground)] sm:max-w-none">
                     {item.merchant_name ?? 'Unknown merchant'}
                   </td>
                   <td className="py-2 pr-4 text-[var(--muted)]">

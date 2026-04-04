@@ -33,17 +33,21 @@ self.addEventListener('fetch', (event) => {
       try {
         const networkResponse = await fetch(event.request);
         return networkResponse;
-      } catch (error) {
+      } catch (_error) {
         const cache = await caches.open(CACHE_NAME);
         const cachedResponse = await cache.match(event.request);
         if (cachedResponse) return cachedResponse;
 
-        if (event.request.headers.get('accept')?.includes('text/html')) {
+        const accept = event.request.headers.get('accept') || '';
+        if (accept.includes('text/html')) {
           const offlineResponse = await cache.match(OFFLINE_URL);
           if (offlineResponse) return offlineResponse;
+          const shell = await cache.match('/');
+          if (shell) return shell;
         }
 
-        throw error;
+        // Avoid uncaught rejections in respondWith when offline / dev server hiccups.
+        return new Response('', { status: 503, statusText: 'Network unavailable' });
       }
     })()
   );

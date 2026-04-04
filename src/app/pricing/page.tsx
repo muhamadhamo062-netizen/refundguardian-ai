@@ -16,7 +16,7 @@ const plans = [
     name: 'Monthly Advocate',
     price: '$9.99',
     period: '/month',
-    description: 'Unlimited scans and claims. Cancel anytime.',
+    description: 'Unlimited scans and full autonomous agent coverage. Cancel anytime.',
     cta: 'Choose Monthly',
     href: '/login',
     featured: true,
@@ -44,30 +44,30 @@ export default function PricingPage() {
               Start free. Upgrade when you want more coverage and priority support.
             </p>
           </div>
-          <div className="grid gap-8 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3 sm:gap-8">
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl border p-6 ${
+                className={`relative rounded-2xl border p-3 sm:p-6 ${
                   plan.featured
                     ? 'border-[var(--accent)] bg-[var(--card)] shadow-lg shadow-[var(--accent)]/10'
                     : 'border-[var(--border)] bg-[var(--card)]'
                 }`}
               >
                 {plan.featured && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[var(--accent)] px-3 py-0.5 text-xs font-medium text-[var(--background)]">
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-medium text-[var(--background)] sm:-top-3 sm:px-3 sm:text-xs">
                     Popular
                   </span>
                 )}
-                <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">{plan.price}</span>
-                  <span className="text-[var(--muted)]">{plan.period}</span>
+                <h3 className="text-sm font-semibold text-white sm:text-lg">{plan.name}</h3>
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-0.5 sm:mt-4">
+                  <span className="text-xl font-bold text-white sm:text-3xl">{plan.price}</span>
+                  <span className="text-[11px] text-[var(--muted)] sm:text-base">{plan.period}</span>
                 </div>
-                <p className="mt-2 text-sm text-[var(--muted)]">{plan.description}</p>
+                <p className="mt-2 text-[11px] leading-snug text-[var(--muted)] sm:text-sm">{plan.description}</p>
                 <Link
                   href={plan.href}
-                  className={`mt-6 block w-full rounded-lg py-3 text-center text-sm font-medium transition-colors ${
+                  className={`mt-3 block w-full rounded-lg py-2 text-center text-[11px] font-semibold transition-colors sm:mt-6 sm:py-3 sm:text-sm ${
                     plan.featured
                       ? 'bg-[var(--accent)] text-[var(--background)] hover:bg-[var(--accent-muted)]'
                       : 'border border-[var(--border)] text-white hover:bg-[var(--card-hover)]'

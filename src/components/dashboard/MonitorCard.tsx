@@ -34,7 +34,7 @@ export function MonitorCard({
           </div>
           <h3 className="text-sm font-semibold text-white">{title}</h3>
         </div>
-        <dl className="mt-5 grid grid-cols-3 gap-4 sm:gap-6">
+        <dl className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           <div>
             <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
               Orders Scanned
@@ -45,7 +45,7 @@ export function MonitorCard({
           </div>
           <div>
             <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
-              Claims Submitted
+              Agent processed
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-white sm:text-xl">
               {claimsSubmitted.toLocaleString()}
@@ -53,7 +53,7 @@ export function MonitorCard({
           </div>
           <div>
             <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
-              Refunds Recovered
+              Compensation recovered
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--accent)] sm:text-xl">
               {refundsRecovered.toLocaleString()}

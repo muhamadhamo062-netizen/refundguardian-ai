@@ -6,6 +6,13 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
+    // Dev: unregister any SW left from a prior `next start` so localhost isn’t hijacked.
+    if (process.env.NODE_ENV !== 'production') {
+      void navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const r of regs) void r.unregister();
+      });
+      return;
+    }
 
     const register = async () => {
       try {
