@@ -133,18 +133,10 @@ export async function GET(request: Request) {
       );
     }
 
-    let q = supabase
+    const { data: rowsRaw, error } = await supabase
       .from('orders')
-      .select(
-        'id, order_id, merchant_name, order_date, order_value_cents, currency, created_at, raw_email, provider'
-      )
-      .eq('user_id', user.id);
-
-    if (providerParam && allowedProviders.has(providerParam)) {
-      q = q.eq('provider', providerParam);
-    }
-
-    const { data: rowsRaw, error } = await q
+      .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -155,12 +147,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
 
-    const rows = (rowsRaw ?? []).filter((r) => {
+    type OrderRow = {
+      id?: string;
+      order_id?: string | null;
+      merchant_name?: string | null;
+      order_date?: string | null;
+      order_value_cents?: number | null;
+      currency?: string | null;
+      created_at?: string | null;
+      raw_email?: unknown;
+      provider?: string | null;
+    };
+
+    let rows = (rowsRaw ?? []) as OrderRow[];
+    if (providerParam && allowedProviders.has(providerParam)) {
+      rows = rows.filter((r) => (r.provider ?? 'other') === providerParam);
+    }
+
+    const rowsFiltered = rows.filter((r) => {
       const oid = r.order_id ?? '';
       return !String(oid).startsWith('rg-seed-');
     });
 
-    const orders = rows.map((r) => {
+    const orders = rowsFiltered.map((r) => {
       const raw = (r.raw_email as Record<string, unknown> | null) || {};
       const extractedAt =
         typeof raw.batch_extracted_at === 'string'

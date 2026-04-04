@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { startTransition, useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import { ConnectionSetupSkeleton } from '@/components/dashboard/ConnectionSetupSkeleton';
 import type { ExtensionTokenVariant } from '@/components/dashboard/ExtensionToken';
@@ -34,12 +34,10 @@ type Phase = 'boot' | 'mobile' | 'desktop';
 export function ConnectionSetupSection({ variant = 'dashboard' }: Props) {
   const [phase, setPhase] = useState<Phase>('boot');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ);
     const apply = () => {
-      startTransition(() => {
-        setPhase(mq.matches ? 'mobile' : 'desktop');
-      });
+      setPhase(mq.matches ? 'mobile' : 'desktop');
     };
     apply();
     mq.addEventListener('change', apply);

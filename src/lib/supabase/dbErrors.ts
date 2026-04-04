@@ -8,6 +8,9 @@ export function isOrdersRelationMissingError(err: {
   if (!err) return false;
   const msg = (err.message || '').toLowerCase();
   const code = err.code || '';
+  // Wrong columns / drifted schema — not "table missing" (avoids false "run quick_fix" when table exists).
+  if (code === '42703') return false;
+  if (msg.includes('column') && msg.includes('does not exist')) return false;
   if (code === '42P01') return true;
   if (msg.includes('does not exist') && (msg.includes('orders') || msg.includes('relation'))) return true;
   if (msg.includes('schema cache') && msg.includes('orders')) return true;

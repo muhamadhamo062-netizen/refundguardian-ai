@@ -153,9 +153,11 @@
                 } catch (_) {}
                 return;
               }
-              chrome.runtime.sendMessage(payloadSeed, function (resp) {
-                var leSeed = chrome.runtime.lastError;
-                var okSeed = !leSeed && resp && resp.ok === true;
+              function finishSeed(resp, leSeed) {
+                var okSeed =
+                  !leSeed &&
+                  resp &&
+                  (resp.ok === true || (typeof resp.opened === 'number' && resp.opened > 0));
                 var nOpen = resp && typeof resp.opened === 'number' ? resp.opened : 0;
                 var resList = resp && Array.isArray(resp.results) ? resp.results : [];
                 try {
@@ -170,6 +172,23 @@
                     window.location.origin
                   );
                 } catch (_) {}
+              }
+              chrome.runtime.sendMessage(payloadSeed, function (resp) {
+                var leSeed = chrome.runtime.lastError;
+                if (leSeed) {
+                  console.warn('[RefundGuardian] OPEN_MERCHANT_SEED_URLS first try:', leSeed.message || leSeed);
+                  setTimeout(function () {
+                    chrome.runtime.sendMessage(payloadSeed, function (resp2) {
+                      var le2 = chrome.runtime.lastError;
+                      if (le2) {
+                        console.warn('[RefundGuardian] OPEN_MERCHANT_SEED_URLS retry failed:', le2.message || le2);
+                      }
+                      finishSeed(resp2, le2);
+                    });
+                  }, 350);
+                  return;
+                }
+                finishSeed(resp, leSeed);
               });
               return;
             }

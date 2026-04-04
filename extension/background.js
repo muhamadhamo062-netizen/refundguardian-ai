@@ -1004,6 +1004,96 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
+/**
+ * Opens merchant seed URLs in tabs (inactive by default). Returns a Promise so MV3 delivers
+ * the response reliably (async sendResponse alone often loses the channel before tabs open).
+ */
+function handleOpenMerchantSeedUrls(message) {
+  let entries = message.entries;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    const urlsOnly = message.urls;
+    if (Array.isArray(urlsOnly) && urlsOnly.length > 0) {
+      entries = urlsOnly.map(function (u) {
+        return { key: 'unknown', url: u, label: '' };
+      });
+    }
+  }
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return Promise.resolve({ ok: false, opened: 0, results: [] });
+  }
+
+  const wantInactive = message.inactive !== false;
+
+  function createOne(url) {
+    return new Promise(function (resolve) {
+      try {
+        chrome.tabs.create({ url: url, active: wantInactive ? false : true }, function () {
+          var err = chrome.runtime.lastError;
+          if (err) {
+            resolve({ ok: false, error: err.message });
+          } else {
+            resolve({ ok: true });
+          }
+        });
+      } catch (e) {
+        resolve({ ok: false, error: e instanceof Error ? e.message : String(e) });
+      }
+    });
+  }
+
+  return (async function () {
+    /** @type {{ key: string; url: string; ok: boolean; error?: string }[]} */
+    var results = [];
+    var opened = 0;
+    var i;
+    for (i = 0; i < entries.length; i++) {
+      if (i > 0) {
+        await new Promise(function (r) {
+          setTimeout(r, 150);
+        });
+      }
+      var row = entries[i] || {};
+      var u = typeof row.url === 'string' ? row.url : '';
+      var key = typeof row.key === 'string' && row.key ? row.key : 'idx_' + i;
+      if (!u || !isAllowedMerchantSeedUrl(u)) {
+        console.warn('[RefundGuardian] Merchant seed tab: ' + key + ' SKIP (invalid URL)');
+        results.push({ key: key, url: u, ok: false, error: 'invalid_or_disallowed_url' });
+        continue;
+      }
+
+      var attempt = await createOne(u);
+      if (!attempt.ok) {
+        console.warn(
+          '[RefundGuardian] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown') + ' (retry)'
+        );
+        await new Promise(function (r) {
+          setTimeout(r, 200);
+        });
+        attempt = await createOne(u);
+      }
+      if (attempt.ok) {
+        opened++;
+        console.log(
+          '[RefundGuardian] Merchant seed tab: ' +
+            key +
+            ' OK (' +
+            (wantInactive ? 'inactive' : 'active') +
+            ', background-safe)'
+        );
+        results.push({ key: key, url: u, ok: true });
+      } else {
+        console.warn('[RefundGuardian] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown'));
+        results.push({ key: key, url: u, ok: false, error: attempt.error });
+      }
+    }
+
+    return { ok: opened > 0, opened: opened, results: results };
+  })().catch(function (e) {
+    console.error('[RefundGuardian] handleOpenMerchantSeedUrls', e);
+    return { ok: false, opened: 0, results: [], error: e instanceof Error ? e.message : String(e) };
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'FETCH') {
     const url = message.url;
@@ -1169,77 +1259,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'OPEN_MERCHANT_SEED_URLS') {
-    let entries = message.entries;
-    if (!Array.isArray(entries) || entries.length === 0) {
-      const urlsOnly = message.urls;
-      if (Array.isArray(urlsOnly) && urlsOnly.length > 0) {
-        entries = urlsOnly.map((u) => ({ key: 'unknown', url: u, label: '' }));
-      }
-    }
-    if (!Array.isArray(entries) || entries.length === 0) {
-      sendResponse({ ok: false, opened: 0, results: [] });
-      return false;
-    }
-
-    const wantInactive = message.inactive !== false;
-
-    (async () => {
-      /** @type {{ key: string; url: string; ok: boolean; error?: string }[]} */
-      const results = [];
-
-      function createOne(url) {
-        return new Promise((resolve) => {
-          try {
-            chrome.tabs.create({ url, active: wantInactive ? false : true }, () => {
-              const err = chrome.runtime.lastError;
-              if (err) {
-                resolve({ ok: false, error: err.message });
-              } else {
-                resolve({ ok: true });
-              }
-            });
-          } catch (e) {
-            resolve({ ok: false, error: e instanceof Error ? e.message : String(e) });
-          }
-        });
-      }
-
-      let opened = 0;
-      for (let i = 0; i < entries.length; i++) {
-        const row = entries[i] || {};
-        const u = typeof row.url === 'string' ? row.url : '';
-        const key = typeof row.key === 'string' && row.key ? row.key : `idx_${i}`;
-        if (!u || !isAllowedMerchantSeedUrl(u)) {
-          console.warn(`[RefundGuardian] Merchant seed tab: ${key} SKIP (invalid URL)`);
-          results.push({ key, url: u, ok: false, error: 'invalid_or_disallowed_url' });
-          continue;
-        }
-
-        let attempt = await createOne(u);
-        if (!attempt.ok) {
-          console.warn(`[RefundGuardian] Merchant seed tab: ${key} FAIL — ${attempt.error || 'unknown'} (retry)`);
-          attempt = await createOne(u);
-        }
-        if (attempt.ok) {
-          opened++;
-          console.log(
-            `[RefundGuardian] Merchant seed tab: ${key} OK (${wantInactive ? 'inactive' : 'active'}, background-safe)`
-          );
-          results.push({ key, url: u, ok: true });
-        } else {
-          console.warn(`[RefundGuardian] Merchant seed tab: ${key} FAIL — ${attempt.error || 'unknown'}`);
-          results.push({ key, url: u, ok: false, error: attempt.error });
-        }
-      }
-
-      sendResponse({ ok: opened > 0, opened, results });
-    })().catch((e) => {
-      logError('OPEN_MERCHANT_SEED_URLS', e);
-      try {
-        sendResponse({ ok: false, opened: 0, results: [] });
-      } catch (_) {}
-    });
-    return true;
+    return handleOpenMerchantSeedUrls(message);
   }
 
   if (message.type === 'SET_ACCESS_TOKEN') {

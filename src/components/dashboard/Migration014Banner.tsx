@@ -14,12 +14,11 @@ export function Migration014Banner({ show }: { show: boolean }) {
         Migration 014 missing – extension_sync_events not persisting.
       </p>
       <p className="mt-1 break-words text-xs text-amber-200/90">
-        Apply{' '}
-        <code className="break-all rounded bg-black/30 px-1">
-          supabase/migrations/014_extension_sync_events.sql
-        </code>{' '}
-        (or <code className="break-all rounded bg-black/30 px-1">npx supabase db push</code>) so extension sync
-        batches are logged.
+        In Supabase → <strong className="font-semibold">SQL Editor</strong>: run{' '}
+        <code className="break-all rounded bg-black/30 px-1">supabase/QUICK_APPLY_014_015_017.sql</code> (014 + IMAP
+        015/017), or apply each file under <code className="rounded bg-black/30 px-1">supabase/migrations/</code> in
+        order. With CLI: <code className="rounded bg-black/30 px-1">npx supabase link</code> then{' '}
+        <code className="rounded bg-black/30 px-1">npx supabase db push</code>.
       </p>
     </div>
   );

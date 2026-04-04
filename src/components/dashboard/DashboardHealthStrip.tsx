@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react';
 type HealthPayload = {
   ok?: boolean;
   db?: string;
+  /** Machine-readable reason from /api/health */
+  db_hint?: string;
+  /** Sanitized error snippet (debug) */
+  db_detail?: string;
   storage?: string;
   imap_app_credentials?: string;
   imap_env?: {
@@ -63,12 +67,30 @@ export function DashboardHealthStrip() {
 
   const p = state.payload!;
   const issues: string[] = [];
-  if (p.db !== 'connected') issues.push(`Database: ${p.db ?? 'unknown'}`);
+  if (p.db !== 'connected') {
+    if (p.db_hint === 'rls_blocks_anon_add_service_role') {
+      issues.push(
+        'Database: add SUPABASE_SERVICE_ROLE_KEY in .env.local (Supabase → Settings → API → service_role secret). Health check reads `orders` without a user session; anon key is blocked by RLS.'
+      );
+    } else if (p.db_hint === 'invalid_or_unauthorized_key') {
+      issues.push(
+        'Database: wrong URL or API key — copy Project URL + anon (or publishable) key from Supabase → Settings → API.'
+      );
+    } else if (p.db === 'missing_table' || p.db_hint === 'missing_orders_table') {
+      issues.push('Database: `orders` table missing — run supabase migrations (see QUICK_APPLY_014_015_017.sql).');
+    } else if (p.db_hint === 'missing_env') {
+      issues.push('Database: missing NEXT_PUBLIC_SUPABASE_URL or anon key.');
+    } else {
+      issues.push(
+        `Database: ${p.db ?? 'error'}${p.db_detail ? ` — ${p.db_detail}` : ''}`
+      );
+    }
+  }
   if (p.storage === 'missing_env') issues.push('Supabase env vars missing');
   if (p.imap_app_credentials === 'missing_table') issues.push('IMAP table missing (run migration 015/017)');
-  if (p.imap_env?.encryption_key === 'missing') issues.push('IMAP encryption key missing');
-  if (p.imap_env?.service_role === 'missing') issues.push('Service role key missing (cron)');
-  if (p.imap_env?.cron_secret === 'missing') issues.push('Cron secret missing (cron)');
+  if (p.imap_env?.encryption_key === 'missing') issues.push('IMAP encryption key missing (GMAIL_IMAP_ENCRYPTION_KEY)');
+  if (p.imap_env?.service_role === 'missing') issues.push('Service role key missing (SUPABASE_SERVICE_ROLE_KEY)');
+  if (p.imap_env?.cron_secret === 'missing') issues.push('Cron secret missing (CRON_SECRET)');
 
   if (issues.length === 0) return null;
 

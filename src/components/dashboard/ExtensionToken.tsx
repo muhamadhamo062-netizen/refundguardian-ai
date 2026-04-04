@@ -467,13 +467,14 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
           } finally {
             releaseBurst();
           }
+          // Don’t claim success if every merchant tab failed (was returning true here before).
+          return rows.some((r) => r.opened);
         } catch (e) {
           console.error('[RefundGuardian] Connect + seed failed', e);
           releaseBurst();
           showBanner('Could not sync or open merchant pages. Try again in a moment.', 6000);
           return false;
         }
-        return true;
       }
 
       await pushIfNew(t, { force: forcePush });
@@ -627,17 +628,15 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
 
   const onReseedOrderPages = useCallback(
     async (opts?: { suppressPostAckMerchantOpen?: boolean }) => {
-      const ok = await runConnect({
+      await runConnect({
         force: true,
         openSeed: true,
         forceReseed: true,
         suppressPostAckMerchantOpen: opts?.suppressPostAckMerchantOpen,
       });
-      if (ok) {
-        showBanner('Opening merchant order pages in the background (Dashboard stays focused)…', 5000);
-      }
+      // Result banners come from runConnect (opened count / errors) — no duplicate message here.
     },
-    [runConnect, showBanner]
+    [runConnect]
   );
 
   const onInstallAndSync = (opts?: { suppressPostAckMerchantOpen?: boolean }) => {
@@ -831,10 +830,11 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
               /* ignore */
             }
           }, 12_000);
-          // Always allow the post-ACK open path so the extension can open tabs even
-          // when the click-time bridge message isn't received (e.g. domain not in manifest matches).
+          // Never suppress real `chrome.tabs.create` here: `suppressPostAckMerchantOpen: true` was skipping
+          // inactive merchant tabs whenever the extension was already installed but the token was not yet ACK’d,
+          // which made the UI claim tabs opened when they did not.
           if (fullyConnected) void onReseedOrderPages({ suppressPostAckMerchantOpen: false });
-          else void onInstallAndSync({ suppressPostAckMerchantOpen: extensionOk === true });
+          else void onInstallAndSync({ suppressPostAckMerchantOpen: false });
         }}
         disabled={primaryActionDisabled}
         className={`min-h-[44px] w-full touch-manipulation rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${
@@ -898,11 +898,17 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
           Per platform
         </p>
         {stats?.ordersUnavailable === 'missing_table' ? (
-          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100/95">
-            Order counts stay at 0 until the <code className="text-amber-200/90">orders</code> table exists in Supabase.
-            In the Supabase SQL Editor, run the script <code className="text-amber-200/90">supabase/quick_fix_orders.sql</code>{' '}
-            from this repo, then refresh this page.
-          </p>
+          <div className="space-y-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100/95">
+            <p>
+              Order counts stay at 0 until the <code className="text-amber-200/90">orders</code> table exists in Supabase.
+              In Supabase → SQL → paste and run <code className="text-amber-200/90">supabase/quick_fix_orders.sql</code> (same as{' '}
+              <code className="text-amber-200/90">migrations/006_ensure_orders_complete.sql</code>), then refresh this page.
+            </p>
+            <p className="border-t border-amber-500/20 pt-2 text-amber-100/90" dir="rtl" lang="ar">
+              عدد الطلبات يظل 0 حتى يُنشأ جدول <code className="text-amber-200/90" dir="ltr">orders</code> في Supabase. من لوحة Supabase
+              افتح SQL والصق محتوى الملف أعلاه وشغّله مرة واحدة، ثم حدّث الصفحة.
+            </p>
+          </div>
         ) : null}
         <div className={variant === 'dashboard' ? 'grid gap-2 sm:grid-cols-2' : 'space-y-1'}>
           {US_PLATFORMS.map((p) => {
