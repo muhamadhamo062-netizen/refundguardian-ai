@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#022c22"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="80" y="100" width="1120" height="520" rx="24" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+  <text x="640" y="200" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="22">RefundGuardian AI</text>
+  <rect x="200" y="260" width="880" height="48" rx="12" fill="#1e293b" stroke="#10b981" stroke-width="1.5" opacity="0.9"/>
+  <text x="640" y="292" text-anchor="middle" fill="#6ee7b7" font-family="system-ui,sans-serif" font-size="16">Autonomous scan · delayed delivery detected</text>
+  <rect x="200" y="340" width="400" height="120" rx="16" fill="#064e3b" stroke="#10b981" stroke-opacity="0.4"/>
+  <text x="400" y="390" text-anchor="middle" fill="#d1fae5" font-family="system-ui,sans-serif" font-size="14">Estimated compensation</text>
+  <text x="400" y="425" text-anchor="middle" fill="#34d399" font-family="system-ui,sans-serif" font-size="28" font-weight="700">$12.00</text>
+  <rect x="640" y="340" width="440" height="120" rx="16" fill="#1e293b" stroke="#475569"/>
+  <text x="860" y="395" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Background monitoring</text>
+  <text x="860" y="425" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="12">Amazon · Uber · DoorDash</text>
+</svg>

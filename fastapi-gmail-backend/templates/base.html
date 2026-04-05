@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>{% block title %}Gmail Order Monitor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="/">Order Monitor</a>
+      <nav>
+        {% block nav %}{% endblock %}
+      </nav>
+    </div>
+  </header>
+  <main class="wrap main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="foot">
+    <div class="wrap muted">Mobile-friendly · Use App Passwords only</div>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

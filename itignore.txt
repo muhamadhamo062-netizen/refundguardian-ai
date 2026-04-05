@@ -1,0 +1,9 @@
+.gitignore  
+node_modules/
+.next/
+.ext/
+*.pack
+.cache/
+.env
+
+

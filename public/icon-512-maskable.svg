@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="RefundGuardian">
+  <!-- Extra padding for maskable safe zone -->
+  <rect width="512" height="512" fill="#0a0b0d"/>
+  <rect x="64" y="64" width="384" height="384" rx="48" fill="#111318"/>
+  <text x="256" y="288" text-anchor="middle" fill="#34d399" font-family="system-ui,Segoe UI,sans-serif" font-size="120" font-weight="700">RG</text>
+</svg>

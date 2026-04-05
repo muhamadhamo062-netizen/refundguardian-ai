@@ -1,0 +1,18 @@
+# FastAPI server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Gmail IMAP (TLS)
+# stdlib: ssl, imaplib, email — no extra package required
+
+# AES encryption for app passwords (Fernet = AES-128 CBC + HMAC)
+cryptography==44.0.0
+
+# HTML email parsing
+beautifulsoup4==4.12.3
+
+# OpenAI (v1 client)
+openai>=1.40.0,<2
+
+# Settings from environment
+pydantic-settings==2.7.0

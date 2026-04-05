@@ -1,0 +1,28 @@
+لماذا لا يتغير شيء في الداشبورد؟
+===============================
+
+(1) الجداول في قاعدة البيانات
+------------------------------
+تحذير "Migration 014" و "IMAP table missing" يختفيان فقط بعد إنشاء الجداول في Supabase.
+
+افعل هذا مرة واحدة:
+  • ادخل https://supabase.com → مشروعك → SQL Editor → New query
+  • من جهازك افتح الملف: supabase/QUICK_APPLY_014_015_017.sql
+  • انسخ كل المحتوى والصقه في SQL Editor ثم اضغط RUN
+  • يجب أن ترى Success
+
+(2) مفتاح service_role
+----------------------
+في نفس المشروع: Settings → API → انسخ "service_role" (سرّي) والصقه في .env.local في السطر:
+  SUPABASE_SERVICE_ROLE_KEY=هنا_الصق
+
+احفظ الملف ثم أعد تشغيل: npm run dev
+
+(3) مفتاح anon
+--------------
+إذا كان NEXT_PUBLIC_SUPABASE_ANON_KEY لا يبدأ بـ eyJ فقد يكون خطأ.
+من Settings → API انسخ المفتاح المسمى anon / public (JWT طويل).
+
+(4) الإكستنشن وتبويبات الطلبات
+-------------------------------
+بعد (1) و(2): حدّث الصفحة، ثم chrome://extensions → Reload للإكستنشن، ثم جرّب زر "Open order pages again".

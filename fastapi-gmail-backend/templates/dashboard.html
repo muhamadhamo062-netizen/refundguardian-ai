@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block nav %}
+  <span class="muted">{{ user_email }}</span>
+  <button type="button" class="btn ghost" id="btn-out">Sign out</button>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Dashboard</h1>
+  <p class="muted">Connect Gmail with a <strong>Google App Password</strong>, then scan your inbox.</p>
+
+  <h2 class="h2">Gmail connection</h2>
+  <form id="f-gmail" class="form">
+    <label>Gmail address<input type="email" name="gmail_address" autocomplete="username" required placeholder="you@gmail.com" /></label>
+    <label>App Password <span class="hint">(16 characters)</span><input type="password" name="app_password" autocomplete="new-password" required minlength="8" /></label>
+    <button type="submit" class="btn primary">Save securely (AES encrypted)</button>
+  </form>
+  <p id="gmail-msg" class="msg" role="status"></p>
+
+  <div class="row">
+    <button type="button" class="btn primary" id="btn-scan">Scan Gmail now</button>
+    <span id="scan-status" class="muted"></span>
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="h2">Orders &amp; letters</h2>
+  <div class="table-wrap">
+    <table class="data" id="tbl">
+      <thead>
+        <tr>
+          <th>From</th>
+          <th>Order date</th>
+          <th>Delivery</th>
+          <th>Delayed</th>
+          <th>Status</th>
+          <th>Letter</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p id="empty" class="muted hidden">No orders yet — connect Gmail and run a scan.</p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadOrders() {
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+  tbody.innerHTML = '';
+  const res = await fetch('/api/orders', { credentials: 'same-origin' });
+  if (!res.ok) return;
+  const rows = await res.json();
+  if (!rows.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const letterPreview = r.complaint_letter
+      ? (r.complaint_letter.slice(0, 120) + (r.complaint_letter.length > 120 ? '…' : ''))
+      : '—';
+    tr.innerHTML = `
+      <td data-label="From">${escapeHtml(r.source_sender)}</td>
+      <td data-label="Order date">${r.order_date ? fmt(r.order_date) : '—'}</td>
+      <td data-label="Delivery">${r.delivery_time ? fmt(r.delivery_time) : '—'}</td>
+      <td data-label="Delayed">${r.is_delayed ? 'Yes' + (r.delay_minutes != null ? ` (~${r.delay_minutes}m)` : '') : 'No'}</td>
+      <td data-label="Status">${escapeHtml(r.status)}</td>
+      <td data-label="Letter" class="letter">${escapeHtml(letterPreview)}</td>
+      <td><button type="button" class="btn small danger" data-del="${r.id}">Delete</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('[data-del]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this order record?')) return;
+      const id = btn.getAttribute('data-del');
+      const d = await fetch('/api/orders/' + id, { method: 'DELETE', credentials: 'same-origin' });
+      if (d.ok) loadOrders();
+    });
+  });
+}
+
+function fmt(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+document.getElementById('f-gmail').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const msg = document.getElementById('gmail-msg');
+  msg.textContent = '';
+  const res = await fetch('/api/gmail/connect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      gmail_address: fd.get('gmail_address'),
+      app_password: fd.get('app_password'),
+    }),
+  });
+  const j = await res.json().catch(() => ({}));
+  msg.textContent = res.ok ? (j.message || 'Saved.') : (j.detail || 'Error');
+});
+
+document.getElementById('btn-scan').addEventListener('click', async () => {
+  const st = document.getElementById('scan-status');
+  st.textContent = 'Scanning…';
+  const res = await fetch('/api/gmail/scan', { method: 'POST', credentials: 'same-origin' });
+  const j = await res.json().catch(() => ({}));
+  st.textContent = res.ok
+    ? `Done — inserted ${j.rows_inserted}, updated ${j.rows_updated}, messages ${j.messages_fetched}`
+    : (j.detail || 'Scan failed');
+  loadOrders();
+});
+
+document.getElementById('btn-out').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = '/';
+});
+
+loadOrders();
+</script>
+{% endblock %}

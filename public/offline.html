@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RefundGuardian AI – Offline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0b0d" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0b0d;
+        --card: #12141a;
+        --border: #2a2d38;
+        --fg: #e8eaed;
+        --muted: #9ca3af;
+        --accent: #00d4aa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: var(--fg);
+      }
+      .card {
+        max-width: 420px;
+        width: 100%;
+        border-radius: 1.25rem;
+        border: 1px solid var(--border);
+        background: radial-gradient(circle at top left, #111827, #020617);
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+        padding: 1.75rem 1.5rem 1.75rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.15rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(15, 23, 42, 0.8);
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        margin: 0.9rem 0 0.25rem;
+        font-size: 1.4rem;
+      }
+      p {
+        margin: 0.25rem 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .status {
+        margin-top: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.65rem 0.8rem;
+        border-radius: 0.9rem;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        font-size: 0.8rem;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #f97316;
+      }
+      .actions {
+        margin-top: 1.35rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .btn {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        border-radius: 0.9rem;
+        border: 1px solid transparent;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--accent);
+        color: #020617;
+      }
+      .btn-secondary {
+        background: transparent;
+        color: var(--muted);
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+      .hint {
+        margin-top: 0.9rem;
+        font-size: 0.7rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      @media (min-width: 480px) {
+        .card {
+          padding: 2rem 1.75rem 2rem;
+        }
+        h1 {
+          font-size: 1.6rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" aria-labelledby="offline-title">
+      <div class="badge">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #f97316;"></span>
+        Offline mode
+      </div>
+      <h1 id="offline-title">You&apos;re currently offline</h1>
+      <p>
+        RefundGuardian AI can&apos;t reach our servers right now. Any pages you&apos;ve already opened may still work,
+        but live data and new scans are paused until your connection returns.
+      </p>
+      <div class="status">
+        <span class="dot"></span>
+        <span>We&apos;ll retry automatically as soon as you&apos;re back online.</span>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" onclick="window.location.reload()">
+          Retry connection
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="window.location.href='/'">
+          Go to landing page
+        </button>
+      </div>
+      <p class="hint">
+        Tip: You can install RefundGuardian AI as an app for a more native, full-screen experience.
+      </p>
+    </main>
+  </body>
+</html>
+
