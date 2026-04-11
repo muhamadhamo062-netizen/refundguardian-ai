@@ -1,13 +1,12 @@
 /**
  * Scheduled IMAP ingest (cron / external scheduler).
- * Vercel Cron: `vercel.json` runs this every **4 hours** (`0 */4 * * *`, UTC).
+ * Vercel Hobby does not support multi-run-per-day Cron Jobs; schedule this route externally
+ * (e.g. GitHub Actions, UptimeRobot, or a daily Pro cron) with `x-cron-secret` / Bearer auth.
  * Users can run a manual scan anytime from the dashboard (Gmail → **Scan Now**).
  *
  * Security: requires `CRON_SECRET` in env and matching `x-cron-secret` or `Authorization: Bearer`.
  *
- * Deploy:
- * - Vercel: `vercel.json` crons → this route; set CRON_SECRET + SUPABASE_SERVICE_ROLE_KEY + GMAIL_IMAP_ENCRYPTION_KEY.
- * - Else: `curl -H "x-cron-secret: $CRON_SECRET" https://your-domain/api/cron/imap-scan`
+ * Example: `curl -H "x-cron-secret: $CRON_SECRET" https://your-domain/api/cron/imap-scan`
  */
 
 import { NextResponse } from 'next/server';
