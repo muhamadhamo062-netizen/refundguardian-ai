@@ -1,12 +1,12 @@
 /**
- * RefundGuardian AI — Content script (Manifest V3)
+ * Refyndra AI — Content script (Manifest V3)
  * Amazon order extraction (Phase 2) + PAGE_VISIT + SPA hooks.
  */
 (function () {
   'use strict';
 
   /**
-   * CRITICAL: Register dashboard <-> extension bridge BEFORE __REFUNDGUARDIAN_AI_INJECTED__ guard.
+   * CRITICAL: Register dashboard <-> extension bridge BEFORE __REFYNDRA_AI_INJECTED__ guard.
    * Runs on localhost and *.vercel.app (add your custom domain to manifest matches if needed).
    * Same-window postMessage often has event.source === null — do not require e.source === window.
    */
@@ -15,12 +15,12 @@
     if (hn === 'localhost' || hn === '127.0.0.1') return true;
     if (/\.vercel\.app$/i.test(hn)) return true;
     try {
-      if (document.querySelector('meta[name="refundguardian-dashboard"]')) return true;
+      if (document.querySelector('meta[name="refyndra-dashboard"]')) return true;
     } catch (_) {}
     return false;
   }
 
-  function registerRefundGuardianDashboardBridgeOnce() {
+  function registerRefyndraDashboardBridgeOnce() {
     try {
       if (!shouldRegisterDashboardBridge()) return;
       if (window.__RG_DASHBOARD_BRIDGE_V2__) return;
@@ -49,7 +49,6 @@
               try {
                 if (!window.__RG_EXTENSION_INSTALL_LOGGED__) {
                   window.__RG_EXTENSION_INSTALL_LOGGED__ = true;
-                  console.log('[RefundGuardian] Extension installed.');
                 }
               } catch (_) {}
               window.postMessage(
@@ -64,7 +63,7 @@
               return;
             }
 
-            if (data.type === 'REFUNDGUARDIAN_CONNECT_TOKEN') {
+            if (data.type === 'REFYNDRA_CONNECT_TOKEN') {
               var tok2 = data.token;
               if (typeof tok2 !== 'string' || !tok2 || !chrome.runtime?.id) return;
               rgPendingTok = tok2;
@@ -83,11 +82,11 @@
                   function () {
                     var le2 = chrome.runtime.lastError;
                     if (le2) {
-                      console.warn('[RefundGuardian] token sync failed:', le2.message);
+                      console.warn('[Refyndra] token sync failed:', le2.message);
                       try {
                         window.postMessage(
                           {
-                            type: 'REFUNDGUARDIAN_TOKEN_ACK',
+                            type: 'REFYNDRA_TOKEN_ACK',
                             ok: false,
                             error: le2.message,
                           },
@@ -96,11 +95,10 @@
                       } catch (_) {}
                       return;
                     }
-                    console.log('[RefundGuardian] Token synced successfully.');
                     try {
                       window.postMessage(
                         {
-                          type: 'REFUNDGUARDIAN_TOKEN_ACK',
+                          type: 'REFYNDRA_TOKEN_ACK',
                           ok: true,
                           at: new Date().toISOString(),
                         },
@@ -113,7 +111,7 @@
               return;
             }
 
-            if (data.type === 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED') {
+            if (data.type === 'REFYNDRA_OPEN_MERCHANT_SEED') {
               var ridSeed = data.requestId;
               var entriesSeed = data.entries;
               var urlsSeed = data.urls;
@@ -122,7 +120,7 @@
                 try {
                   window.postMessage(
                     {
-                      type: 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED_DONE',
+                      type: 'REFYNDRA_OPEN_MERCHANT_SEED_DONE',
                       requestId: ridSeed,
                       ok: false,
                       opened: 0,
@@ -142,7 +140,7 @@
                 try {
                   window.postMessage(
                     {
-                      type: 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED_DONE',
+                      type: 'REFYNDRA_OPEN_MERCHANT_SEED_DONE',
                       requestId: ridSeed,
                       ok: false,
                       opened: 0,
@@ -163,7 +161,7 @@
                 try {
                   window.postMessage(
                     {
-                      type: 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED_DONE',
+                      type: 'REFYNDRA_OPEN_MERCHANT_SEED_DONE',
                       requestId: ridSeed,
                       ok: okSeed,
                       opened: nOpen,
@@ -176,12 +174,12 @@
               chrome.runtime.sendMessage(payloadSeed, function (resp) {
                 var leSeed = chrome.runtime.lastError;
                 if (leSeed) {
-                  console.warn('[RefundGuardian] OPEN_MERCHANT_SEED_URLS first try:', leSeed.message || leSeed);
+                  console.warn('[Refyndra] OPEN_MERCHANT_SEED_URLS first try:', leSeed.message || leSeed);
                   setTimeout(function () {
                     chrome.runtime.sendMessage(payloadSeed, function (resp2) {
                       var le2 = chrome.runtime.lastError;
                       if (le2) {
-                        console.warn('[RefundGuardian] OPEN_MERCHANT_SEED_URLS retry failed:', le2.message || le2);
+                        console.warn('[Refyndra] OPEN_MERCHANT_SEED_URLS retry failed:', le2.message || le2);
                       }
                       finishSeed(resp2, le2);
                     });
@@ -240,38 +238,30 @@
     } catch (_) {}
   }
 
-  registerRefundGuardianDashboardBridgeOnce();
+  registerRefyndraDashboardBridgeOnce();
 
   try {
-    if (window.__REFUNDGUARDIAN_AI_INJECTED__) {
+    if (window.__REFYNDRA_AI_INJECTED__) {
       return;
     }
-    window.__REFUNDGUARDIAN_AI_INJECTED__ = true;
-
-    console.log('[RefundGuardian] content.js loaded', window.location.href);
-
-    console.log('🔥 RefundGuardian AI Injected Successfully');
+    window.__REFYNDRA_AI_INJECTED__ = true;
 
     const IS_TEST_ENV =
       window.location.hostname.includes('localhost') ||
       window.location.hostname === '127.0.0.1';
-
-    if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
-      console.log('[RefundGuardian] LOCALHOST MODE ACTIVE');
-    }
 
     const host = window.location.hostname || '';
 
     function logSendError(context) {
       const err = chrome.runtime.lastError;
       if (err && err.message) {
-        console.warn('[RefundGuardian] sendMessage failed (' + context + '):', err.message);
+        console.warn('[Refyndra] sendMessage failed (' + context + '):', err.message);
       }
     }
 
     function sendMessageSafe(payload, context) {
       if (!chrome.runtime?.id) {
-        console.warn('[RefundGuardian] chrome.runtime not available (' + context + ')');
+        console.warn('[Refyndra] chrome.runtime not available (' + context + ')');
         return;
       }
       chrome.runtime.sendMessage(payload, () => logSendError(context));
@@ -297,13 +287,13 @@
     function postJsonToOrdersApi(body, contextLabel) {
       try {
         if (!chrome.storage?.local) {
-          console.warn('[RefundGuardian] chrome.storage.local unavailable (' + (contextLabel || 'orders') + ')');
+          console.warn('[Refyndra] chrome.storage.local unavailable (' + (contextLabel || 'orders') + ')');
           return;
         }
         chrome.storage.local.get(['accessToken', 'rgApiBase'], function (stored) {
           var err = chrome.runtime.lastError;
           if (err) {
-            console.warn('[RefundGuardian] storage get failed', err.message);
+            console.warn('[Refyndra] storage get failed', err.message);
             return;
           }
           var base = RG_API_DEFAULT;
@@ -315,52 +305,14 @@
           var headers = { 'Content-Type': 'application/json' };
           if (token) {
             headers['Authorization'] = 'Bearer ' + token;
-            if (window.__RG_VERBOSE_ORDERS_API__) {
-              console.log('[RefundGuardian] POST /api/orders with Bearer token (' + (contextLabel || 'orders') + ')');
-            }
-          } else if (window.__RG_VERBOSE_ORDERS_API__) {
-            console.log(
-              '[RefundGuardian] POST /api/orders without Bearer (save token in extension popup) —',
-              contextLabel || 'orders'
-            );
           }
           fetch(base + '/api/orders', {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(body),
-          })
-            .then(function (r) {
-              return r
-                .text()
-                .then(function (t) {
-                  return { ok: r.ok, status: r.status, body: t };
-                })
-                .catch(function () {
-                  return { ok: r.ok, status: r.status, body: '' };
-                });
-            })
-            .then(function (res) {
-              if (res && res.ok) {
-                if (window.__RG_VERBOSE_ORDERS_API__) {
-                  console.log('[RefundGuardian] Backend status: success');
-                }
-                return;
-              }
-              if (window.__RG_VERBOSE_ORDERS_API__) {
-                console.log('[RefundGuardian] Backend status: fail', res && res.status ? res.status : 'unknown');
-              }
-            })
-            .catch(function (e) {
-              if (window.__RG_VERBOSE_ORDERS_API__) {
-                console.log('[RefundGuardian] POST /api/orders network error', e && e.message ? e.message : e);
-              }
-            });
+          }).catch(function () {});
         });
-      } catch (e) {
-        if (window.__RG_VERBOSE_ORDERS_API__) {
-          console.log('[RefundGuardian] postJsonToOrdersApi error', e && e.message ? e.message : e);
-        }
-      }
+      } catch (_) {}
     }
 
     function postAmazonOrderToLocalApi(order, context) {
@@ -378,25 +330,21 @@
           },
         };
         postJsonToOrdersApi(payload, context || 'amazon_extractor');
-      } catch (e) {
-        if (window.__RG_VERBOSE_ORDERS_API__) {
-          console.log('[RefundGuardian] postAmazonOrderToLocalApi error', e && e.message ? e.message : e);
-        }
-      }
+      } catch (_) {}
     }
 
     function showInjectionIndicator(options) {
       const isTest = options && options.test === true;
-      if (document.getElementById('rg-refundguardian-injection-badge')) {
+      if (document.getElementById('rg-refyndra-injection-badge')) {
         return;
       }
       const badge = document.createElement('div');
-      badge.id = 'rg-refundguardian-injection-badge';
+      badge.id = 'rg-refyndra-injection-badge';
       badge.setAttribute('aria-hidden', 'true');
       badge.title = isTest
-        ? 'RefundGuardian AI — TEST MODE (localhost)'
-        : 'RefundGuardian AI is active on this page';
-      badge.textContent = isTest ? 'RefundGuardian TEST' : 'RefundGuardian';
+        ? 'Refyndra AI — TEST MODE (localhost)'
+        : 'Refyndra AI is active on this page';
+      badge.textContent = isTest ? 'Refyndra TEST' : 'Refyndra';
       Object.assign(badge.style, {
         position: 'fixed',
         bottom: '10px',
@@ -431,7 +379,6 @@
 
     /** --- Local dev (localhost / 127.0.0.1) — no Amazon extraction --- */
     if (IS_TEST_ENV) {
-      console.log('🟡 RefundGuardian TEST MODE ACTIVE');
       showInjectionIndicator({ test: true });
 
       sendMessageSafe(
@@ -460,30 +407,6 @@
     const isUberRides = host.includes('uber.com') && !isUberEats;
     const isDoorDash = host === 'doordash.com' || /\.doordash\.com$/i.test(host);
 
-    if (isAmazon) {
-      console.log('[RefundGuardian] Running on Amazon —', host);
-    } else if (isUberEats) {
-      console.log('[RefundGuardian] Running on Uber Eats —', host);
-    } else if (isUberRides) {
-      console.log('[RefundGuardian] Running on Uber Rides —', host);
-    } else if (isDoorDash) {
-      console.log('[RefundGuardian] Running on DoorDash —', host);
-    }
-
-    if (isUberEats || isUberRides) {
-      try {
-        chrome.storage.local.get(['accessToken'], function (r) {
-          var le = chrome.runtime.lastError;
-          if (le) return;
-          var has = !!(r && r.accessToken && String(r.accessToken).trim().length > 0);
-          console.log(
-            '[RefundGuardian] accessToken for Uber sync:',
-            has ? 'present' : 'missing (open dashboard or extension popup)'
-          );
-        });
-      } catch (_) {}
-    }
-
     showInjectionIndicator({ test: false });
 
     let lastPageVisitSent = '';
@@ -493,7 +416,6 @@
       const href = window.location.href;
       if (href === lastPageVisitSent) return;
       lastPageVisitSent = href;
-      console.log('[RefundGuardian] PAGE_VISIT (' + reason + ')', href);
       sendMessageSafe(
         {
           type: 'PAGE_VISIT',
@@ -513,7 +435,6 @@
       const href = window.location.href;
       if (href === lastDoorDashPageVisitSent) return;
       lastDoorDashPageVisitSent = href;
-      console.log('[RefundGuardian] PAGE_VISIT (' + reason + ')', href);
       sendMessageSafe(
         {
           type: 'PAGE_VISIT',
@@ -592,7 +513,6 @@
         let pollTimer = null;
         let mo = null;
         let lastUrl = window.location.href;
-        let lastOrdersPageLoggedHref = '';
 
         function isAmazonOrdersPage() {
           try {
@@ -809,7 +729,7 @@
               'OPEN deep amazon'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] scheduleAmazonDeepInactiveTabs', e);
+            console.warn('[Refyndra] scheduleAmazonDeepInactiveTabs', e);
           }
         }
 
@@ -900,7 +820,7 @@
               'AMAZON_ORDERS_DETECTED deep'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] tryAmazonDetailDeepScan', e);
+            console.warn('[Refyndra] tryAmazonDetailDeepScan', e);
           }
         }
 
@@ -938,7 +858,7 @@
               } catch (_) {}
             }
           } catch (e) {
-            console.warn('[RefundGuardian] extractAmazonOrders error', e);
+            console.warn('[Refyndra] extractAmazonOrders error', e);
           }
           return list;
         }
@@ -960,13 +880,6 @@
             if (!isAmazonOrdersPage()) {
               return;
             }
-            try {
-              const h = window.location.href;
-              if (h !== lastOrdersPageLoggedHref) {
-                lastOrdersPageLoggedHref = h;
-                console.log('[RefundGuardian] Orders page detected');
-              }
-            } catch (_) {}
 
             const raw = extractAmazonOrders();
             const merged = dedupeOrders(raw);
@@ -978,15 +891,7 @@
               newOnes.push(merged[i]);
             }
 
-            if (merged.length > 0) {
-              console.log('[RefundGuardian] Extraction pass: ' + merged.length + ' order(s) in DOM (deduped)');
-            }
-
             if (newOnes.length > 0) {
-              console.log('[RefundGuardian] Sending orders to background');
-              console.log(
-                '[RefundGuardian] Sending orders to background (new=' + newOnes.length + ', page=orders)'
-              );
               sendMessageSafe(
                 {
                   type: 'AMAZON_ORDERS_DETECTED',
@@ -1006,7 +911,7 @@
             }
             tryAmazonDetailDeepScan();
           } catch (e) {
-            console.warn('[RefundGuardian] runOrderExtractionPass', e);
+            console.warn('[Refyndra] runOrderExtractionPass', e);
           }
         }
 
@@ -1040,14 +945,13 @@
               mo.observe(root, { childList: true, subtree: true, attributes: false });
             }
           } catch (e) {
-            console.warn('[RefundGuardian] MutationObserver attach failed', e);
+            console.warn('[Refyndra] MutationObserver attach failed', e);
           }
         }
 
         function syncOrdersPageWatchers() {
           try {
             if (!isAmazonOrdersPage()) {
-              lastOrdersPageLoggedHref = '';
               if (mo) {
                 mo.disconnect();
                 mo = null;
@@ -1110,7 +1014,6 @@
         let pollTimerUe = null;
         let moUe = null;
         let lastUrlUe = window.location.href;
-        let lastOrdersPageLoggedHrefUe = '';
 
         function parsePriceToCentsUber(price) {
           const n = parseAmount(price);
@@ -1208,7 +1111,7 @@
               }
             }
           } catch (e) {
-            console.warn('[RefundGuardian] Uber Eats __NEXT_DATA__ parse failed', e);
+            console.warn('[Refyndra] Uber Eats __NEXT_DATA__ parse failed', e);
           }
 
           try {
@@ -1255,7 +1158,7 @@
               });
             }
           } catch (e2) {
-            console.warn('[RefundGuardian] Uber Eats DOM extract failed', e2);
+            console.warn('[Refyndra] Uber Eats DOM extract failed', e2);
           }
 
           return list;
@@ -1290,7 +1193,6 @@
             const href = window.location.href;
             if (href === lastUePageVisitSent) return;
             lastUePageVisitSent = href;
-            console.log('[RefundGuardian] PAGE_VISIT (' + reason + ')', href);
             sendMessageSafe(
               {
                 type: 'PAGE_VISIT',
@@ -1333,7 +1235,7 @@
               'OPEN deep ubereats'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] scheduleUberEatsDeepInactiveTabs', e);
+            console.warn('[Refyndra] scheduleUberEatsDeepInactiveTabs', e);
           }
         }
 
@@ -1403,7 +1305,7 @@
               'UBER_EATS_ORDERS_DETECTED deep'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] tryUberEatsDetailDeepScan', e);
+            console.warn('[Refyndra] tryUberEatsDetailDeepScan', e);
           }
         }
 
@@ -1412,13 +1314,6 @@
             if (!isUberEatsOrdersPage()) {
               return;
             }
-            try {
-              const h = window.location.href;
-              if (h !== lastOrdersPageLoggedHrefUe) {
-                lastOrdersPageLoggedHrefUe = h;
-                console.log('[RefundGuardian] Uber Eats orders page context');
-              }
-            } catch (_) {}
 
             const merged = extractUberEatsOrders();
             const newOnes = [];
@@ -1431,14 +1326,7 @@
               newOnes.push(row);
             }
 
-            if (merged.length > 0) {
-              console.log('[RefundGuardian] Uber Eats extraction pass: ' + merged.length + ' order(s) in DOM');
-            }
-
             if (newOnes.length > 0) {
-              console.log(
-                '[RefundGuardian] Uber Eats: sending ' + newOnes.length + ' new order(s) to background'
-              );
               sendMessageSafe(
                 {
                   type: 'UBER_EATS_ORDERS_DETECTED',
@@ -1452,7 +1340,7 @@
             }
             tryUberEatsDetailDeepScan();
           } catch (e) {
-            console.warn('[RefundGuardian] runUberEatsExtractionPass', e);
+            console.warn('[Refyndra] runUberEatsExtractionPass', e);
           }
         }
 
@@ -1486,14 +1374,13 @@
               moUe.observe(root, { childList: true, subtree: true, attributes: false });
             }
           } catch (e) {
-            console.warn('[RefundGuardian] Uber Eats MutationObserver attach failed', e);
+            console.warn('[Refyndra] Uber Eats MutationObserver attach failed', e);
           }
         }
 
         function syncUberEatsWatchers() {
           try {
             if (!isUberEatsOrdersPage()) {
-              lastOrdersPageLoggedHrefUe = '';
               if (moUe) {
                 moUe.disconnect();
                 moUe = null;
@@ -1549,7 +1436,7 @@
               if (!isUberEatsOrdersPage()) return;
               scheduleUberEatsExtract();
             } catch (_) {}
-          }, 5000);
+          }, 30000);
         } catch (_) {}
 
         window.addEventListener(
@@ -1576,7 +1463,6 @@
         let pollTimerUr = null;
         let moUr = null;
         let lastUrlUr = window.location.href;
-        let lastOrdersPageLoggedHrefUr = '';
 
         function parsePriceToCentsRides(price) {
           const n = parseAmount(price);
@@ -1716,7 +1602,7 @@
               }
             }
           } catch (e) {
-            console.warn('[RefundGuardian] Uber Rides __NEXT_DATA__ parse failed', e);
+            console.warn('[Refyndra] Uber Rides __NEXT_DATA__ parse failed', e);
           }
 
           try {
@@ -1757,7 +1643,7 @@
               });
             }
           } catch (e2) {
-            console.warn('[RefundGuardian] Uber Rides DOM extract failed', e2);
+            console.warn('[Refyndra] Uber Rides DOM extract failed', e2);
           }
 
           return list;
@@ -1803,7 +1689,6 @@
             const href = window.location.href;
             if (href === lastUrPageVisitSent) return;
             lastUrPageVisitSent = href;
-            console.log('[RefundGuardian] PAGE_VISIT (' + reason + ')', href);
             sendMessageSafe(
               {
                 type: 'PAGE_VISIT',
@@ -1846,7 +1731,7 @@
               'OPEN deep uber rides'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] scheduleUberRidesDeepInactiveTabs', e);
+            console.warn('[Refyndra] scheduleUberRidesDeepInactiveTabs', e);
           }
         }
 
@@ -1912,7 +1797,7 @@
               'UBER_RIDES_ORDERS_DETECTED deep'
             );
           } catch (e) {
-            console.warn('[RefundGuardian] tryUberRidesDetailDeepScan', e);
+            console.warn('[Refyndra] tryUberRidesDetailDeepScan', e);
           }
         }
 
@@ -1921,13 +1806,6 @@
             if (!isUberRidesOrdersPage()) {
               return;
             }
-            try {
-              const h = window.location.href;
-              if (h !== lastOrdersPageLoggedHrefUr) {
-                lastOrdersPageLoggedHrefUr = h;
-                console.log('[RefundGuardian] Uber Rides trips / activity context');
-              }
-            } catch (_) {}
 
             const merged = extractUberRidesOrders();
             const newOnes = [];
@@ -1940,14 +1818,7 @@
               newOnes.push(row);
             }
 
-            if (merged.length > 0) {
-              console.log('[RefundGuardian] Uber Rides extraction pass: ' + merged.length + ' trip(s) in DOM');
-            }
-
             if (newOnes.length > 0) {
-              console.log(
-                '[RefundGuardian] Uber Rides: sending ' + newOnes.length + ' new trip(s) to background'
-              );
               sendMessageSafe(
                 {
                   type: 'UBER_RIDES_ORDERS_DETECTED',
@@ -1961,7 +1832,7 @@
             }
             tryUberRidesDetailDeepScan();
           } catch (e) {
-            console.warn('[RefundGuardian] runUberRidesExtractionPass', e);
+            console.warn('[Refyndra] runUberRidesExtractionPass', e);
           }
         }
 
@@ -1995,14 +1866,13 @@
               moUr.observe(root, { childList: true, subtree: true, attributes: false });
             }
           } catch (e) {
-            console.warn('[RefundGuardian] Uber Rides MutationObserver attach failed', e);
+            console.warn('[Refyndra] Uber Rides MutationObserver attach failed', e);
           }
         }
 
         function syncUberRidesWatchers() {
           try {
             if (!isUberRidesOrdersPage()) {
-              lastOrdersPageLoggedHrefUr = '';
               if (moUr) {
                 moUr.disconnect();
                 moUr = null;
@@ -2058,7 +1928,7 @@
               if (!isUberRidesOrdersPage()) return;
               scheduleUberRidesExtract();
             } catch (_) {}
-          }, 5000);
+          }, 30000);
         } catch (_) {}
 
         window.addEventListener(
@@ -2075,6 +1945,6 @@
       })();
     }
   } catch (e) {
-    console.error('[RefundGuardian] content.js fatal error:', e);
+    console.error('[Refyndra] content.js fatal error:', e);
   }
 })();

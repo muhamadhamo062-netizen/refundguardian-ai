@@ -51,7 +51,7 @@ async function pushSessionToExtension(): Promise<void> {
   if (!session?.access_token) return;
   window.postMessage(
     {
-      type: 'REFUNDGUARDIAN_CONNECT_TOKEN',
+      type: 'REFYNDRA_CONNECT_TOKEN',
       token: session.access_token,
       apiBase: window.location.origin,
     },
@@ -91,7 +91,7 @@ function AutoIssueCell({ row }: { row: AceTableRow }) {
   return (
     <div
       className="rounded-md border border-emerald-500/30 bg-emerald-500/[0.07] px-2 py-2"
-      title="Handled automatically in the background — no button required."
+      title="Automatic delay is tracked in the background — no button required."
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-sm leading-none" aria-hidden>
@@ -103,7 +103,7 @@ function AutoIssueCell({ row }: { row: AceTableRow }) {
         <PriorityBadge label={label} />
       </div>
       <p className="mt-1.5 text-[9px] leading-snug text-zinc-500">
-        Auto-handled — use Actions to log Issue #1 (pre-OpenAI).
+        Tracked automatically — use Actions to log automatic delay (pre-OpenAI).
       </p>
     </div>
   );
@@ -179,7 +179,7 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
 
   useEffect(() => {
     void refreshStats();
-    const id = window.setInterval(() => void refreshStats(), 8_000);
+    const id = window.setInterval(() => void refreshStats(), 120_000);
     return () => window.clearInterval(id);
   }, [refreshStats]);
 
@@ -260,15 +260,10 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
         },
       });
       if (error) {
-        console.warn('[RefundGuardian] compensation_events insert', error.message);
+        console.warn('[Refyndra] compensation_events insert', error.message);
       }
     }
 
-    console.log('[RefundGuardian] ace_enhanced_compensation_draft', {
-      platform: modal.platformId,
-      issue: modal.issueType,
-      slot: modal.slot,
-    });
     closeModal();
   }, [modal, modalText, drafts, persistDrafts, closeModal]);
 
@@ -296,13 +291,11 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
           provider: providerForAcePlatform(row.id),
           auto_issue_type: autoType,
           optional_issue_types: opt,
-          message_preview: `Confirm — Issue #1 (${row.auto.title}) · ${row.platformLabel}`,
+          message_preview: `Confirm — ${row.auto.title} · ${row.platformLabel}`,
           metadata: { action: 'approve_auto_compensation', pre_openai: true },
         });
-        if (error) console.warn('[RefundGuardian] approve insert', error.message);
+        if (error) console.warn('[Refyndra] approve insert', error.message);
       }
-
-      console.log('[RefundGuardian] approve_auto_compensation', { platform: row.id, auto: autoType, optional: opt });
     },
     [drafts]
   );
@@ -314,11 +307,6 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
       setEnhanced((e) => ({ ...e, [row.id]: true }));
       window.setTimeout(() => setActionPulse(null), 900);
       await pushSessionToExtension();
-      console.log('[RefundGuardian] enhance_compensation_optional', {
-        platform: row.id,
-        opt2_len: drafts[row.id].opt2.length,
-        opt3_len: drafts[row.id].opt3.length,
-      });
     },
     [drafts]
   );
@@ -405,7 +393,7 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
           </h2>
           <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-[var(--muted)]">
             <span className="font-semibold text-zinc-300">Automatic:</span> One row per merchant (Amazon, Uber Eats, Uber
-            Rides, DoorDash). Issue #1 is delay-related — late delivery or trip delay is processed in the background; you
+            Rides, DoorDash). <span className="text-zinc-200">Automatic delay</span> is tracked in the background; you
             do not need to type anything for delays. Tap <span className="text-zinc-400">Approve auto compensation</span>{' '}
             only when you want that automatic lane logged on your account (pre-OpenAI).{' '}
             <span className="font-semibold text-zinc-300">Optional:</span> Issues #2–3 are extra — use them only if you
@@ -479,7 +467,7 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
             <tr className="border-b border-[var(--border)] bg-zinc-900/55">
               <th className="px-2.5 py-2 text-[9px] font-semibold uppercase tracking-wider text-zinc-400">Platform</th>
               <th className="min-w-[160px] px-2.5 py-2 text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
-                Issue #1 (Auto)
+                Automatic delay
               </th>
               <th className="min-w-[168px] px-2.5 py-2 text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
                 Issue #2 (Optional)
@@ -526,14 +514,14 @@ export function AutonomousCompensationEngineTable({ className }: AutonomousCompe
                         className={`min-h-[44px] w-full cursor-pointer touch-manipulation rounded-md border border-emerald-500/45 bg-emerald-500/12 px-2.5 py-2 text-left text-[10px] font-semibold leading-snug text-emerald-50 transition hover:bg-emerald-500/20 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 sm:w-auto ${
                           actionPulse === `${row.id}-approve` ? 'ring-2 ring-emerald-400/45' : ''
                         }`}
-                        title="Logs Issue #1 (automatic lane) for this platform — pre-OpenAI compensation confirmation."
+                        title="Logs automatic delay for this platform — pre-OpenAI compensation confirmation."
                       >
                         Approve auto compensation
                       </button>
                       <button
                         type="button"
                         disabled={!hasOpt}
-                        onClick={() => void onEnhance(row, hasOpt)}
+                        onClick={() => void onEnhance(row, Boolean(hasOpt))}
                         className={`min-h-[44px] w-full cursor-pointer touch-manipulation rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-2 text-left text-[10px] font-medium leading-snug text-zinc-200 transition hover:bg-zinc-800 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 sm:w-auto ${
                           actionPulse === `${row.id}-enhance` ? 'ring-2 ring-amber-400/35' : ''
                         } ${enhanced[row.id] ? 'ring-1 ring-amber-500/40' : ''}`}

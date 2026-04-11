@@ -45,7 +45,7 @@ export function MonitorCard({
           </div>
           <div>
             <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
-              Agent processed
+              AI Audited
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-white sm:text-xl">
               {claimsSubmitted.toLocaleString()}
@@ -60,6 +60,9 @@ export function MonitorCard({
             </dd>
           </div>
         </dl>
+        {ordersScanned === 0 && claimsSubmitted === 0 && refundsRecovered === 0 ? (
+          <p className="mt-4 text-[11px] leading-snug text-zinc-500">Waiting for your first scan...</p>
+        ) : null}
       </div>
     </div>
   );

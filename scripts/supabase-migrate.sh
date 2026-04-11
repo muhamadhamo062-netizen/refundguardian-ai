@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# RefundGuardian — run all Supabase migrations (including 013 default seed for new users)
+# Refyndra — run all Supabase migrations (including 013 default seed for new users)
 # Usage:
 #   npm run db:migrate
 #   SKIP_LINK=1 npm run db:migrate          # skip link attempt (already linked)
@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-echo "Starting RefundGuardian migrations..."
+echo "Starting Refyndra migrations..."
 
 if ! command -v supabase >/dev/null 2>&1; then
   echo "❌ Supabase CLI not found."
@@ -46,7 +46,7 @@ echo ""
 echo "Pushing migrations (supabase db push)..."
 if supabase db push; then
   echo ""
-  echo "✅ All RefundGuardian migrations applied successfully!"
+  echo "✅ All Refyndra migrations applied successfully!"
   echo "   New users will automatically receive default orders for Amazon, Uber Eats, Uber, and DoorDash (migration 013)."
   echo ""
   echo "Local migration SQL files:"

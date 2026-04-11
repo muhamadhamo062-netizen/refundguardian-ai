@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   if (insErr) {
     if (isExtensionSyncTableMissingError(insErr)) {
       console.warn(
-        '[RefundGuardian] Migration 014 missing – extension_sync_events not persisting.'
+        '[Refyndra] Migration 014 missing – extension_sync_events not persisting.'
       );
       return NextResponse.json({
         ok: true,

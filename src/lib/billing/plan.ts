@@ -1,5 +1,5 @@
 /**
- * Plan gating — subscription billing is Stripe-backed; no charges without checkout.
+ * Plan gating — subscription billing via checkout; no charges without checkout.
  */
 
 export const FREE_TIER_AI_ORDER_LIMIT = 5;
@@ -12,6 +12,9 @@ export type UserBillingRow = {
   autonomous_mode_enabled?: boolean | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  /** Paddle Billing (`ctm_*` / `sub_*`). */
+  paddle_customer_id?: string | null;
+  paddle_subscription_id?: string | null;
   /** Legacy timestamp; prefer trial_used. */
   free_trial_initial_scan_completed_at?: string | null;
   /** Single complimentary AI scan consumed for non-Pro (strict lock). */
@@ -31,6 +34,14 @@ export function isProSubscriber(p: UserBillingRow | null | undefined): boolean {
 export function isTrialWindowOpen(p: UserBillingRow | null | undefined): boolean {
   if (!p?.trial_ends_at) return false;
   return new Date(p.trial_ends_at) > new Date();
+}
+
+/** Full days remaining in the free-trial window (0 if ended today or past). */
+export function trialDaysRemaining(p: UserBillingRow | null | undefined): number | null {
+  if (!p?.trial_ends_at || !isTrialWindowOpen(p)) return null;
+  const end = new Date(p.trial_ends_at).getTime();
+  const now = Date.now();
+  return Math.max(0, Math.ceil((end - now) / 86_400_000));
 }
 
 export function maxAiOrdersForUser(p: UserBillingRow | null | undefined): number {

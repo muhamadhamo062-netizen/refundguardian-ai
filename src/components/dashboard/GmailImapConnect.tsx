@@ -2,17 +2,23 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { isPlausibleAppPasswordLength, normalizeAppPassword } from '@/lib/appPasswordNormalize';
 
 import { GmailSecureSyncGuide } from '@/components/dashboard/GmailSecureSyncGuide';
+import { MobileSyncVisualStrip } from '@/components/dashboard/MobileSyncVisualStrip';
 
 const TRUST_COPY =
   'Encrypted on our servers. Used only to read invoice-style order emails from supported merchants. You can disconnect anytime.';
 
+const BTN_MOBILE_SYNC =
+  'w-full min-h-[52px] touch-manipulation rounded-xl bg-emerald-500 px-4 py-3.5 text-base font-bold text-[#052e16] shadow-[0_0_32px_rgba(16,185,129,0.42)] ring-2 ring-emerald-400/50 transition hover:bg-emerald-400 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:opacity-50';
+
 /**
- * Mobile-only connection path: save Gmail + App Password to `imap_app_credentials` for the current auth user.
- * Same `user_id` as extension-backed `orders` rows.
+ * Gmail + App Password → `imap_app_credentials` (IMAP ingest + SMTP for send-from-Gmail where enabled).
  */
-export function GmailImapConnect() {
+export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' | 'mobileSync' } = {}) {
+  const mobileSync = variant === 'mobileSync';
+
   const [gmail, setGmail] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +30,8 @@ export function GmailImapConnect() {
   const [lastScanAt, setLastScanAt] = useState<string | null>(null);
   const [lastScanInserted, setLastScanInserted] = useState<number | null>(null);
   const [lastScanError, setLastScanError] = useState<string | null>(null);
+  /** Mobile: reveal visual guide + form only after explicit “Connect Gmail”. */
+  const [connectGmailOpen, setConnectGmailOpen] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     const supabase = createClient();
@@ -63,12 +71,23 @@ export function GmailImapConnect() {
     void refreshStatus();
   }, [refreshStatus]);
 
+  useEffect(() => {
+    if (connected) setConnectGmailOpen(false);
+  }, [connected]);
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setStatus(null);
     try {
+      const normalizedPw = normalizeAppPassword(appPassword);
+      if (!isPlausibleAppPasswordLength(normalizedPw)) {
+        setError(
+          'Paste the full App Password (about 16 characters). Spaces from your clipboard are OK — we remove them automatically.'
+        );
+        return;
+      }
       const supabase = createClient();
       const {
         data: { session },
@@ -84,7 +103,7 @@ export function GmailImapConnect() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ gmailAddress: gmail, appPassword }),
+        body: JSON.stringify({ gmailAddress: gmail.trim(), appPassword: normalizedPw }),
       });
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || body.ok !== true) {
@@ -92,7 +111,31 @@ export function GmailImapConnect() {
         return;
       }
       setAppPassword('');
-      setStatus('Gmail saved securely for this account.');
+      setStatus('Gmail saved — scanning your inbox for the last 14 days…');
+      await refreshStatus();
+
+      try {
+        const scanRes = await fetch('/api/imap/scan-now', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const scanBody = (await scanRes.json().catch(() => ({}))) as {
+          success?: boolean;
+          ordersFound?: number;
+          error?: string;
+        };
+        if (scanRes.ok && scanBody.success === true && typeof scanBody.ordersFound === 'number') {
+          setStatus(
+            scanBody.ordersFound > 0
+              ? `Gmail connected — synced ${scanBody.ordersFound} order(s).`
+              : 'Gmail connected — scanned; no matching order emails in the last 14 days yet.'
+          );
+        } else if (!scanRes.ok) {
+          setStatus('Gmail saved. Pull to refresh or tap Scan Now in a moment.');
+        }
+      } catch {
+        setStatus('Gmail saved. Use Scan Now if orders do not appear within a minute.');
+      }
       await refreshStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed.');
@@ -176,18 +219,52 @@ export function GmailImapConnect() {
     }
   };
 
-  return (
-    <div className="w-full max-w-none rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 shadow-lg shadow-black/20 sm:p-5">
-      <div>
-        <p className="text-sm font-semibold text-[var(--foreground)]">Secure inbox sync</p>
-        <p className="mt-1 text-xs text-[var(--muted)] leading-relaxed">
-          One-time setup: paste your <strong className="text-zinc-200">Secure Sync Code</strong> (Google App
-          Password). 2-Step Verification must be on. Orders sync to this account — same as the desktop extension when
-          you use it.
-        </p>
-      </div>
+  const inputGmailClass = mobileSync
+    ? 'w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-lg text-white placeholder:text-zinc-600'
+    : 'w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white';
 
-      {!connected ? <GmailSecureSyncGuide /> : null}
+  const inputPwClass = mobileSync
+    ? 'w-full min-h-[60px] rounded-xl border-2 border-emerald-500/35 bg-[var(--background)] px-4 py-4 font-mono text-lg leading-relaxed tracking-wide text-white placeholder:text-zinc-600'
+    : 'w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white';
+
+  return (
+    <div
+      className={`w-full max-w-none rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-lg shadow-black/20 sm:p-5 ${mobileSync ? 'space-y-4 p-4' : 'space-y-3 p-4'}`}
+    >
+      {!connected && mobileSync ? <MobileSyncVisualStrip /> : null}
+
+      {!mobileSync ? (
+        <div>
+          <p className="text-sm font-semibold text-[var(--foreground)]">Secure inbox sync</p>
+          <p className="mt-1 text-xs text-[var(--muted)] leading-relaxed">
+            One-time setup: paste your <strong className="text-zinc-200">Secure Sync Code</strong> (Google App
+            Password). 2-Step Verification must be on. This also unlocks{' '}
+            <strong className="text-zinc-200">Send from my Gmail</strong> in the AI Priority Engine (draft with AI,
+            send from your address). Orders sync to this account alongside the browser connection. Background scans run
+            on a schedule; use <strong className="text-zinc-200">Scan Now</strong> for an immediate pull.
+          </p>
+        </div>
+      ) : !connected && mobileSync && !connectGmailOpen ? (
+        <div className="space-y-3 text-center">
+          <p className="text-sm leading-relaxed text-zinc-400">
+            Link Gmail with a secure App Password — no app install. Tap below to see the setup steps and enter your
+            details.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConnectGmailOpen(true)}
+            className={BTN_MOBILE_SYNC}
+          >
+            Connect Gmail
+          </button>
+        </div>
+      ) : !connected && mobileSync && connectGmailOpen ? (
+        <p className="text-center text-sm leading-relaxed text-zinc-400">
+          Enter your Gmail and paste your secure code below — we encrypt it and only read delivery-related receipts.
+        </p>
+      ) : null}
+
+      {!connected && !mobileSync ? <GmailSecureSyncGuide /> : null}
 
       {connected ? (
         <p className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
@@ -201,9 +278,13 @@ export function GmailImapConnect() {
             type="button"
             onClick={() => void onScanNow()}
             disabled={loading || scanLoading}
-            className="w-full min-h-[48px] touch-manipulation rounded-xl bg-white/90 px-4 py-3 text-base font-semibold text-black disabled:opacity-50"
+            className={
+              mobileSync
+                ? BTN_MOBILE_SYNC
+                : 'w-full min-h-[48px] touch-manipulation rounded-xl bg-white/90 px-4 py-3 text-base font-semibold text-black disabled:opacity-50'
+            }
           >
-            {scanLoading ? 'Scanning Gmail…' : 'Scan Now'}
+            {scanLoading ? 'Scanning Gmail…' : mobileSync ? 'Sync Now' : 'Scan Now'}
           </button>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-zinc-300">
             <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -223,54 +304,73 @@ export function GmailImapConnect() {
               <div className="mt-1 text-zinc-400">No orders found yet — run a scan.</div>
             ) : null}
           </div>
+          {mobileSync ? (
+            <p className="text-center text-[11px] font-medium tracking-wide text-emerald-200/90">
+              🔒 Bank-Level Encryption
+            </p>
+          ) : null}
         </div>
       ) : null}
 
-      <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
-        <div>
-          <label htmlFor="rg-gmail" className="mb-1 block text-xs text-zinc-400">
-            Gmail address
-          </label>
-          <input
-            id="rg-gmail"
-            name="email"
-            type="email"
-            autoComplete="username"
-            value={gmail}
-            onChange={(e) => setGmail(e.target.value)}
-            required
-            placeholder="you@gmail.com"
-            className="w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white"
-          />
-        </div>
-        <div>
-          <label htmlFor="rg-app-pw" className="mb-1 block text-sm font-medium text-zinc-200">
-            Secure Sync Code
-          </label>
-          <p className="mb-1.5 text-[11px] leading-snug text-zinc-500">
-            Invoice-only access — this code does not give us access to your private messages.
-          </p>
-          <input
-            id="rg-app-pw"
-            name="appPassword"
-            type="password"
-            autoComplete="current-password"
-            value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
-            required
-            placeholder="16-character code from Google"
-            className="w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full min-h-[48px] touch-manipulation rounded-xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-[var(--background)] disabled:opacity-50"
-        >
-          {loading ? 'Saving…' : 'Save & enable sync'}
-        </button>
-        <p className="text-[13px] leading-snug text-zinc-500">{TRUST_COPY}</p>
-      </form>
+      {!connected && (!mobileSync || connectGmailOpen) ? (
+        <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
+          <div>
+            <label htmlFor="rg-gmail" className={`mb-1 block ${mobileSync ? 'text-sm font-medium text-zinc-300' : 'text-xs text-zinc-400'}`}>
+              Gmail address
+            </label>
+            <input
+              id="rg-gmail"
+              name="email"
+              type="email"
+              autoComplete="username"
+              value={gmail}
+              onChange={(e) => setGmail(e.target.value)}
+              required
+              placeholder="you@gmail.com"
+              className={inputGmailClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="rg-app-pw" className={`mb-1 block ${mobileSync ? 'text-sm font-semibold text-zinc-100' : 'text-sm font-medium text-zinc-200'}`}>
+              {mobileSync ? 'App password (16 characters)' : 'Secure Sync Code'}
+            </label>
+            {!mobileSync ? (
+              <p className="mb-1.5 text-[11px] leading-snug text-zinc-500">
+                Invoice-only access — this code does not give us access to your private messages.
+              </p>
+            ) : (
+              <p className="mb-2 text-[11px] leading-snug text-zinc-500">
+                Paste the code from Google — spaces are fine.
+              </p>
+            )}
+            <input
+              id="rg-app-pw"
+              name="appPassword"
+              type="password"
+              autoComplete="current-password"
+              value={appPassword}
+              onChange={(e) => setAppPassword(e.target.value)}
+              required
+              placeholder={mobileSync ? 'Paste your 16-character code' : 'xxxx xxxx xxxx xxxx (spaces OK)'}
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={inputPwClass}
+            />
+          </div>
+          <button type="submit" disabled={loading} className={mobileSync ? BTN_MOBILE_SYNC : 'w-full min-h-[48px] touch-manipulation rounded-xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-[var(--background)] disabled:opacity-50'}>
+            {loading ? 'Saving…' : mobileSync ? 'Sync Now' : 'Save & enable sync'}
+          </button>
+          {mobileSync ? (
+            <p className="text-center text-[11px] font-medium tracking-wide text-emerald-200/90">
+              🔒 Bank-Level Encryption
+            </p>
+          ) : (
+            <p className="text-[13px] leading-snug text-zinc-500">{TRUST_COPY}</p>
+          )}
+        </form>
+      ) : null}
 
       {status ? (
         <p className="text-xs font-medium text-emerald-300" role="status">

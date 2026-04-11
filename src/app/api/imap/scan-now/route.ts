@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
 import { createServiceRoleClient } from '@/lib/supabase/admin';
+import { mapImapErrorToUserMessage } from '@/lib/server/gmailImapHelpers';
 import { ingestImapForUser } from '@/lib/server/imapCronIngest';
 
 export const dynamic = 'force-dynamic';
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
 
   const startedAt = new Date().toISOString();
   try {
-    const result = await ingestImapForUser(admin, creds);
+    const result = await ingestImapForUser(admin, creds, { daysBack: 14, silentRetries: 3 });
     const now = new Date().toISOString();
     await admin
       .from('imap_app_credentials')
@@ -94,22 +95,27 @@ export async function POST(request: Request) {
     if (result.error) {
       console.warn('[api/imap/scan-now] user', user.id, 'error', result.error);
       return NextResponse.json(
-        { success: false, error: 'Gmail connection failed', detail: result.error, ordersFound: result.inserted },
+        {
+          success: false,
+          error: 'Gmail connection failed',
+          detail: result.error,
+          ordersFound: result.inserted,
+        },
         { status: 502 }
       );
     }
 
-    console.log('[api/imap/scan-now] user', user.id, 'inserted', result.inserted, 'fetched', result.fetched);
     return NextResponse.json({ success: true, ordersFound: result.inserted, scannedAt: now, startedAt });
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : 'scan_failed';
+    const userDetail = mapImapErrorToUserMessage(e);
     console.error('[api/imap/scan-now]', user.id, errMsg);
     const now = new Date().toISOString();
     await admin
       .from('imap_app_credentials')
       .update({ last_scan_at: now, last_scan_inserted: 0, last_scan_error: errMsg })
       .eq('user_id', user.id);
-    return NextResponse.json({ success: false, error: 'Scan failed', detail: errMsg }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Scan failed', detail: userDetail }, { status: 500 });
   }
 }
 

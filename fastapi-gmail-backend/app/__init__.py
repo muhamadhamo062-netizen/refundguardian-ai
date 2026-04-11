@@ -1,1 +1,1 @@
-# RefundGuardian-style Gmail + OpenAI FastAPI application
+# Refyndra-style Gmail + OpenAI FastAPI application

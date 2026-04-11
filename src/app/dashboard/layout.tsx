@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { DashboardNav } from '@/components/dashboard/DashboardNav';
+import { DashboardRefundCelebration } from '@/components/dashboard/DashboardRefundCelebration';
 import { type UserBillingRow, isFreeTrialAiLocked, isProSubscriber } from '@/lib/billing/plan';
 
 /** Lets the extension content script enable the dashboard bridge on any production domain in manifest. */
 export const metadata: Metadata = {
   other: {
-    'refundguardian-dashboard': '1',
+    'refyndra-dashboard': '1',
   },
 };
 
@@ -47,8 +48,12 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <DashboardNav />
+      <DashboardRefundCelebration />
       <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
         {children}
+        <p className="mt-10 border-t border-[var(--border)] pt-6 text-center text-[11px] leading-relaxed text-zinc-500 sm:text-xs">
+          🔒 Bank-Level Security — Your data is encrypted and private.
+        </p>
       </main>
     </div>
   );

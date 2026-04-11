@@ -8,7 +8,9 @@ import {
   isProSubscriber,
   isTrialWindowOpen,
   planLabel,
+  trialDaysRemaining,
 } from '@/lib/billing/plan';
+import { openPaddleSubscriptionCheckout } from '@/lib/billing/paddleCheckoutClient';
 
 type Props = {
   initialProfile: UserBillingRow | null;
@@ -64,12 +66,25 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
           },
           body: JSON.stringify({ interval: interval === 'year' ? 'year' : 'month' }),
         });
-        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; url?: string; error?: string };
-        if (!res.ok || body.ok !== true || !body.url) {
+        const body = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          provider?: string;
+          checkout?: {
+            priceId: string;
+            customerEmail: string | null;
+            customData: Record<string, string>;
+          };
+          error?: string;
+        };
+        if (!res.ok || body.ok !== true) {
           setAutoErr(body.error || `Checkout unavailable (${res.status})`);
           return;
         }
-        window.location.href = body.url;
+        if (body.provider === 'paddle' && body.checkout) {
+          await openPaddleSubscriptionCheckout(body.checkout);
+          return;
+        }
+        setAutoErr('Unexpected checkout response.');
       } finally {
         setBusy(null);
       }
@@ -144,6 +159,8 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
         })
       : null;
 
+  const trialDays = trial ? trialDaysRemaining(profile) : null;
+
   return (
     <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)]/90 p-4 shadow-lg shadow-black/20 sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -156,12 +173,26 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
               {label}
             </span>
             {trial && trialEnds && (
-              <span className="text-xs text-zinc-400">Trial access until {trialEnds}</span>
+              <span className="text-xs text-zinc-400">
+                {typeof trialDays === 'number' ? (
+                  <>
+                    <span className="font-medium text-zinc-300">{trialDays} day{trialDays === 1 ? '' : 's'} left</span>
+                    {' · '}
+                  </>
+                ) : null}
+                Trial access until {trialEnds}
+              </span>
+            )}
+            {pro && (
+              <span className="block text-xs text-zinc-500">
+                Renewal & invoices: open{' '}
+                <strong className="font-medium text-zinc-400">Manage subscription</strong> — your billing portal shows the
+                next charge date and usage.
+              </span>
             )}
             {!pro && (
               <span className="text-xs text-zinc-500">
-                Free trial: one AI scan on recent orders · Autonomous compensation (nothing for you to
-                trigger) · No subscription until you choose Stripe Checkout
+                Free trial includes one smart scan on recent orders · No charge until you subscribe
               </span>
             )}
             {!pro && trialScanDone && (
@@ -196,7 +227,7 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
               </button>
             </>
           )}
-          {pro && profile?.stripe_customer_id && (
+          {pro && profile?.paddle_customer_id && (
             <button
               type="button"
               disabled={busy !== null}
@@ -212,10 +243,10 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
       <div className="mt-5 border-t border-[var(--border)] pt-4">
         <label className="flex cursor-pointer flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <span className="text-sm font-medium text-white">Autonomous mode</span>
+            <span className="text-sm font-medium text-white">AI Auto-Pilot</span>
             <p className="mt-0.5 text-xs text-zinc-500">
-              When on (Pro only), eligible orders log server-side automation events. Nothing is charged or sent to
-              merchants without your action — this augments drafts and audit logs only.
+              Pro only. When on, Refyndra tracks eligible activity in the background to support your drafts — you stay in
+              control; nothing is sent to merchants without you.
             </p>
           </div>
           <input
@@ -227,7 +258,7 @@ export function SubscriptionStatusBar({ initialProfile }: Props) {
           />
         </label>
         {!pro && (
-          <p className="mt-2 text-[10px] text-zinc-600">Subscribe to Pro to enable autonomous automation logging.</p>
+          <p className="mt-2 text-[10px] text-zinc-600">Upgrade to Pro to turn on AI Auto-Pilot.</p>
         )}
       </div>
     </section>

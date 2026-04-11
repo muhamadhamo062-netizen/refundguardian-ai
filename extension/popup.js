@@ -1,5 +1,5 @@
 /**
- * RefundGuardian AI — Popup (chrome.storage.local)
+ * Refyndra AI — Popup (chrome.storage.local)
  */
 
 function setStatus(el, message, kind) {

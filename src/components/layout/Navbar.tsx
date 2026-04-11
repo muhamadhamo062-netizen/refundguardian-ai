@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { InstallButton } from '@/components/pwa/InstallButton';
+import { LANDING_PRIMARY_CTA_GLOW } from '@/lib/landingPrimaryCta';
 import { createClient } from '@/lib/supabase/client';
 
 const baseLinks = [
   { href: '/#how-it-works', label: 'How It Works' },
+  { href: '/#faq', label: 'FAQ' },
   { href: '/pricing', label: 'Pricing' },
 ] as const;
 
@@ -57,14 +59,14 @@ export function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-[var(--background)]/60 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--background)]/50">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           translate="no"
           className="text-lg font-semibold tracking-tight text-white hover:text-[var(--accent)] transition-colors"
         >
-          RefundGuardian AI
+          Refyndra
         </Link>
 
         <ul className="hidden md:flex items-center gap-8">
@@ -90,20 +92,20 @@ export function Navbar() {
           })}
         </ul>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <InstallButton />
           {isAuthed ? (
             <button
               type="button"
               onClick={handleLogout}
-              className="hidden sm:inline-flex rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+              className="hidden md:inline-flex rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
             >
               Logout
             </button>
           ) : (
             <Link
               href="/login"
-              className="hidden sm:inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:bg-[var(--accent-muted)] transition-colors"
+              className="hidden md:inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:bg-[var(--accent-muted)] transition-colors"
             >
               Login
             </Link>
@@ -126,7 +128,7 @@ export function Navbar() {
       </nav>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-[var(--border)] bg-[var(--background)] px-4 py-4">
+        <div className="md:hidden border-t border-white/10 bg-[var(--background)]/75 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-md">
           <ul className="flex flex-col gap-2">
             {navLinks.map(({ href, label }) => (
               <li key={href}>
@@ -140,8 +142,8 @@ export function Navbar() {
                 </Link>
               </li>
             ))}
-            {isAuthed && (
-              <li>
+            {isAuthed ? (
+              <li className="border-t border-[var(--border)] pt-2">
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -149,6 +151,25 @@ export function Navbar() {
                 >
                   Logout
                 </button>
+              </li>
+            ) : (
+              <li className="border-t border-[var(--border)] pt-3">
+                <div className="flex flex-col gap-2 px-1">
+                  <Link
+                    href="/signup"
+                    onClick={() => setMobileOpen(false)}
+                    className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--background)] ${LANDING_PRIMARY_CTA_GLOW}`}
+                  >
+                    Create account
+                  </Link>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--background)]/70 px-4 py-3 text-sm font-medium text-[var(--foreground)] backdrop-blur-sm transition-all duration-300 ease-out hover:scale-[1.02] hover:border-emerald-500/25 hover:bg-[var(--card)] active:scale-[0.98]"
+                  >
+                    Sign in
+                  </Link>
+                </div>
               </li>
             )}
           </ul>

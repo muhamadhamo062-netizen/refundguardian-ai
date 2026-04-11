@@ -17,7 +17,7 @@ export type AceTableRow = {
   platformLabel: string;
   domain: string;
   category: string;
-  /** Issue #1 — automatic lane (silent processing) */
+  /** Automatic delay lane (silent processing) */
   auto: { title: string; issueType: RefundIssueType };
   optional2: AceOptionalColumn;
   optional3: AceOptionalColumn;
@@ -38,7 +38,7 @@ export const ACE_TABLE_ROWS: readonly AceTableRow[] = [
     platformLabel: 'Amazon',
     domain: 'amazon.com',
     category: 'Retail & marketplace',
-    auto: { title: 'Late delivery', issueType: 'late_delivery' },
+    auto: { title: 'Automatic delay', issueType: 'late_delivery' },
     optional2: { label: 'Missing item', issueType: 'missing_item' },
     optional3: { label: 'Charged incorrectly', issueType: 'charged_incorrectly' },
   },
@@ -48,7 +48,7 @@ export const ACE_TABLE_ROWS: readonly AceTableRow[] = [
     platformLabel: 'Uber Eats',
     domain: 'ubereats.com',
     category: 'Food delivery',
-    auto: { title: 'Late delivery', issueType: 'late_delivery' },
+    auto: { title: 'Automatic delay', issueType: 'late_delivery' },
     optional2: { label: 'Missing item', issueType: 'missing_item' },
     optional3: { label: 'Cold food', issueType: 'quality_issue' },
   },
@@ -58,7 +58,7 @@ export const ACE_TABLE_ROWS: readonly AceTableRow[] = [
     platformLabel: 'Uber Rides',
     domain: 'uber.com',
     category: 'Mobility',
-    auto: { title: 'Trip delay', issueType: 'trip_issue' },
+    auto: { title: 'Automatic delay', issueType: 'trip_issue' },
     optional2: { label: 'Charged incorrectly', issueType: 'charged_incorrectly' },
     optional3: { label: 'Trip / route issue', issueType: 'trip_issue' },
   },
@@ -68,7 +68,7 @@ export const ACE_TABLE_ROWS: readonly AceTableRow[] = [
     platformLabel: 'DoorDash',
     domain: 'doordash.com',
     category: 'Food delivery',
-    auto: { title: 'Late delivery', issueType: 'late_delivery' },
+    auto: { title: 'Automatic delay', issueType: 'late_delivery' },
     optional2: { label: 'Missing item', issueType: 'missing_item' },
     optional3: { label: 'Overcharge / wrong charge', issueType: 'charged_incorrectly' },
   },

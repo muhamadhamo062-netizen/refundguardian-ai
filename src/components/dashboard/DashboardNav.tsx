@@ -24,7 +24,7 @@ export function DashboardNav() {
           translate="no"
           className="min-w-0 shrink truncate text-lg font-semibold tracking-tight text-white transition-colors hover:text-[var(--accent)]"
         >
-          RefundGuardian AI
+          Refyndra
         </Link>
         <ul className="hidden md:flex items-center gap-6">
           {links.map(({ href, label }) => {

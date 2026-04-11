@@ -1,5 +1,5 @@
 -- ============================================================================
--- RefundGuardian AI — Default “welcome” orders for every new auth user (all US platforms)
+-- Refyndra AI — Default “welcome” orders for every new auth user (all US platforms)
 --
 -- Why not SERIAL users + orders.user_email?
 -- Supabase Auth owns identities in auth.users (UUID). This app uses public.orders.user_id
@@ -99,7 +99,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.rg_handle_new_user_seed_orders() IS
-  'After signup: seed 4 placeholder orders (one per platform) for RefundGuardian dashboard.';
+  'After signup: seed 4 placeholder orders (one per platform) for Refyndra dashboard.';
 
 CREATE TRIGGER on_auth_user_created_rg_seed_orders
   AFTER INSERT ON auth.users

@@ -18,9 +18,7 @@ export function GmailSecureSyncGuideImage({ pngSrc, svgFallbackSrc, alt }: Props
 
   useEffect(() => {
     const img = new Image();
-    img.onload = () => {
-      if (img.naturalWidth > 0) setSrc(pngSrc);
-    };
+    img.onload = () => setSrc(pngSrc);
     img.onerror = () => setSrc(svgFallbackSrc);
     img.src = pngSrc;
   }, [pngSrc, svgFallbackSrc]);
@@ -32,10 +30,9 @@ export function GmailSecureSyncGuideImage({ pngSrc, svgFallbackSrc, alt }: Props
       alt={alt}
       width={280}
       height={200}
-      className="h-auto min-h-[200px] w-full object-contain object-center"
-      loading="eager"
+      className="h-auto w-full object-contain"
+      loading="lazy"
       decoding="async"
-      onError={() => setSrc(svgFallbackSrc)}
     />
   );
 }

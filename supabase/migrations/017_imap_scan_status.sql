@@ -1,4 +1,4 @@
--- RefundGuardian AI — Track per-user IMAP scan status for UI feedback.
+-- Refyndra AI — Track per-user IMAP scan status for UI feedback.
 -- Safe to re-run.
 
 ALTER TABLE public.imap_app_credentials

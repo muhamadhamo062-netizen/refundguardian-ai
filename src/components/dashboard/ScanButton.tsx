@@ -24,11 +24,16 @@ type OrderApiRow = {
   provider?: string;
 };
 
+type ScanButtonProps = {
+  /** Extra classes for the outer wrapper (e.g. full width on mobile). */
+  className?: string;
+};
+
 /**
  * Runs AI value analysis on synced orders (same pipeline as the orders table refresh).
  * Uses the most recent N orders from GET /api/orders — not a fixed calendar window.
  */
-export function ScanButton() {
+export function ScanButton({ className }: ScanButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -122,7 +127,7 @@ export function ScanButton() {
 
   return (
     <div
-      className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end"
+      className={`flex w-full min-w-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end ${className ?? ''}`}
       aria-busy={loading}
     >
       <button

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
-import { getStripe } from '@/lib/billing/stripe';
+import { getPaddlePriceIds } from '@/lib/billing/paddleEnv';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Stripe Checkout for Pro subscription. Requires STRIPE_SECRET_KEY and STRIPE_PRICE_* env vars.
- * No charge occurs until user completes Checkout with their payment method.
+ * Returns Paddle Billing checkout payload (overlay). Client opens Paddle.js — no Stripe redirect.
+ * Requires NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, PADDLE_PRICE_MONTHLY, PADDLE_PRICE_ANNUAL.
  */
 export async function POST(request: Request) {
   try {
@@ -25,9 +25,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const stripe = getStripe();
-    if (!stripe) {
-      return NextResponse.json({ ok: false, error: 'Billing not configured (STRIPE_SECRET_KEY)' }, { status: 503 });
+    const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim();
+    if (!clientToken) {
+      return NextResponse.json(
+        { ok: false, error: 'Paddle client token not configured (NEXT_PUBLIC_PADDLE_CLIENT_TOKEN)' },
+        { status: 503 }
+      );
     }
 
     let interval: 'month' | 'year' = 'month';
@@ -38,36 +41,27 @@ export async function POST(request: Request) {
       /* default month */
     }
 
-    const priceId =
-      interval === 'year' ? process.env.STRIPE_PRICE_ANNUAL : process.env.STRIPE_PRICE_MONTHLY;
+    const { monthly, annual } = getPaddlePriceIds();
+    const priceId = interval === 'year' ? annual : monthly;
     if (!priceId) {
       return NextResponse.json(
-        { ok: false, error: 'Missing STRIPE_PRICE_MONTHLY or STRIPE_PRICE_ANNUAL' },
+        { ok: false, error: 'Paddle price IDs missing (PADDLE_PRICE_MONTHLY / PADDLE_PRICE_ANNUAL)' },
         { status: 503 }
       );
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      client_reference_id: user.id,
-      customer_email: user.email ?? undefined,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${siteUrl}/dashboard?upgraded=1`,
-      cancel_url: `${siteUrl}/pricing`,
-      metadata: {
-        supabase_user_id: user.id,
-        billing_interval: interval === 'year' ? 'year' : 'month',
-      },
-      subscription_data: {
-        metadata: {
+    return NextResponse.json({
+      ok: true,
+      provider: 'paddle' as const,
+      checkout: {
+        priceId,
+        customerEmail: user.email ?? null,
+        customData: {
           supabase_user_id: user.id,
-        },
+          billing_interval: interval === 'year' ? 'year' : 'month',
+        } satisfies Record<string, string>,
       },
     });
-
-    return NextResponse.json({ ok: true, url: session.url });
   } catch (e) {
     console.error('[api/billing/create-checkout-session]', e);
     return NextResponse.json(

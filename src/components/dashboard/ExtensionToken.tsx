@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   fetchUsPlatformStats,
@@ -16,7 +15,9 @@ const PROBE_TIMEOUT_MS = 1500;
 const INSTALL_POLL_MS = 2000;
 const INSTALL_POLL_MAX = 45;
 const RETRY_PROBE_MS = 12000;
-const STATS_POLL_MS = 10000;
+/** Client-only stats refresh; avoid sub-minute polling + full RSC refresh (keeps dashboard responsive). */
+const STATS_POLL_MS = 5 * 60 * 1000;
+const TOKEN_PUSH_INTERVAL_MS = 60 * 1000;
 
 /** sessionStorage: one seed-tab burst per browser tab session per Supabase access token (until tab closes). */
 const SEED_DONE_STORAGE_KEY = 'rg_merchant_seed_done_fp';
@@ -31,7 +32,7 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Resolves on next successful `REFUNDGUARDIAN_TOKEN_ACK` (listener registered before push). */
+/** Resolves on next successful `REFYNDRA_TOKEN_ACK` (listener registered before push). */
 function waitForTokenAckOnce(timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -42,7 +43,7 @@ function waitForTokenAckOnce(timeoutMs: number): Promise<void> {
     function onMsg(e: MessageEvent) {
       if (e.origin !== window.location.origin) return;
       const d = e.data as { type?: string; ok?: boolean; error?: string };
-      if (d?.type !== 'REFUNDGUARDIAN_TOKEN_ACK') return;
+      if (d?.type !== 'REFYNDRA_TOKEN_ACK') return;
       window.clearTimeout(timer);
       window.removeEventListener('message', onMsg);
       if (d.ok) resolve();
@@ -101,7 +102,7 @@ async function pushTokenToExtension(token: string) {
   for (let i = 0; i < TOKEN_PUSH_DELAYS_MS.length; i++) {
     if (TOKEN_PUSH_DELAYS_MS[i]) await sleep(TOKEN_PUSH_DELAYS_MS[i]);
     window.postMessage(
-      { type: 'REFUNDGUARDIAN_CONNECT_TOKEN', token, apiBase },
+      { type: 'REFYNDRA_CONNECT_TOKEN', token, apiBase },
       window.location.origin
     );
   }
@@ -128,7 +129,7 @@ function fireInactiveMerchantSeedFromClick(): void {
   if (typeof window === 'undefined') return;
   window.postMessage(
     {
-      type: 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED',
+      type: 'REFYNDRA_OPEN_MERCHANT_SEED',
       requestId: randomId(),
       inactive: true,
       entries: merchantSeedEntriesForBridge(),
@@ -149,11 +150,9 @@ function logSeedRowsFromExtensionResults(
   return MERCHANT_SEED_URLS.map((item) => {
     const hit = byKey.get(item.key);
     const opened = hit?.ok === true;
-    if (opened) {
-      console.log(`[RefundGuardian] Merchant seed: ${item.key} · ${item.label} — OK (inactive tab)`);
-    } else {
+    if (!opened) {
       console.warn(
-        `[RefundGuardian] Merchant seed: ${item.key} · ${item.label} — FAIL${hit?.error ? ` (${hit.error})` : ''}`
+        `[Refyndra] Merchant seed: ${item.key} · ${item.label} — FAIL${hit?.error ? ` (${hit.error})` : ''}`
       );
     }
     return { key: item.key, opened, newTab: opened };
@@ -170,10 +169,10 @@ function openMerchantSeedsViaExtensionAwaitable(): Promise<SeedOpenResult[]> {
     const requestId = randomId();
     const timer = window.setTimeout(() => {
       window.removeEventListener('message', onDone);
-      console.warn('[RefundGuardian] Merchant seed: extension open timed out');
+      console.warn('[Refyndra] Merchant seed: extension open timed out');
       resolve(
         MERCHANT_SEED_URLS.map((item) => {
-          console.warn(`[RefundGuardian] Merchant seed: ${item.key} · ${item.label} — FAIL (timeout)`);
+          console.warn(`[Refyndra] Merchant seed: ${item.key} · ${item.label} — FAIL (timeout)`);
           return { key: item.key, opened: false, newTab: false };
         })
       );
@@ -187,16 +186,17 @@ function openMerchantSeedsViaExtensionAwaitable(): Promise<SeedOpenResult[]> {
         opened?: number;
         results?: { key?: string; ok?: boolean; error?: string }[];
       };
-      if (d?.type !== 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED_DONE' || d.requestId !== requestId) return;
+      if (d?.type !== 'REFYNDRA_OPEN_MERCHANT_SEED_DONE' || d.requestId !== requestId) return;
       window.clearTimeout(timer);
       window.removeEventListener('message', onDone);
 
       const n = MERCHANT_SEED_URLS.length;
       if ((!d.results || d.results.length === 0) && (d.opened ?? 0) >= n) {
-        const allOk = MERCHANT_SEED_URLS.map((item) => {
-          console.log(`[RefundGuardian] Merchant seed: ${item.key} · ${item.label} — OK (inactive tab)`);
-          return { key: item.key, opened: true, newTab: true };
-        });
+        const allOk = MERCHANT_SEED_URLS.map((item) => ({
+          key: item.key,
+          opened: true,
+          newTab: true,
+        }));
         resolve(allOk);
         return;
       }
@@ -206,7 +206,7 @@ function openMerchantSeedsViaExtensionAwaitable(): Promise<SeedOpenResult[]> {
     window.addEventListener('message', onDone);
     window.postMessage(
       {
-        type: 'REFUNDGUARDIAN_OPEN_MERCHANT_SEED',
+        type: 'REFYNDRA_OPEN_MERCHANT_SEED',
         requestId,
         inactive: true,
         entries: merchantSeedEntriesForBridge(),
@@ -219,7 +219,7 @@ function openMerchantSeedsViaExtensionAwaitable(): Promise<SeedOpenResult[]> {
 async function openMerchantSeedsWithExtensionRetry(): Promise<SeedOpenResult[]> {
   let rows = await openMerchantSeedsViaExtensionAwaitable();
   if (rows.every((r) => r.opened)) return rows;
-  console.warn('[RefundGuardian] Merchant seed: second pass (retry chrome.tabs.create for failures)');
+  console.warn('[Refyndra] Merchant seed: second pass (retry chrome.tabs.create for failures)');
   const second = await openMerchantSeedsViaExtensionAwaitable();
   const m = new Map(second.map((r) => [r.key, r]));
   return rows.map((r) => {
@@ -251,13 +251,11 @@ function Spinner() {
 export type ExtensionTokenVariant = 'compact' | 'dashboard';
 
 export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTokenVariant } = {}) {
-  const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [extensionOk, setExtensionOk] = useState<boolean | null>(null);
   const [tokenOk, setTokenOk] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [seedOpened, setSeedOpened] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [banner, setBanner] = useState<string>('');
   const [waitingInstall, setWaitingInstall] = useState(false);
   const [stats, setStats] = useState<UsPlatformStats | null>(null);
@@ -370,7 +368,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
       setExtensionOk(ok);
       if (!ok) {
         showBanner(
-          'Install RefundGuardian from the Chrome Web Store, then come back here and tap Connect & Start Scanning.'
+          'Install Refyndra from the Chrome Web Store, then come back here and tap Connect & Start Scanning.'
         );
         return false;
       }
@@ -425,9 +423,6 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
               opened: true,
               newTab: true,
             }));
-            console.log(
-              '[RefundGuardian] Merchant seed: post-ACK tab create skipped (inactive burst already sent on click)'
-            );
           } else {
             rows = await openMerchantSeedsWithExtensionRetry();
           }
@@ -463,14 +458,13 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
               sessionStorage.setItem(SEED_DONE_STORAGE_KEY, fp);
               setSeedOpened(true);
             }
-            console.log('[RefundGuardian] Merchant seed sequence summary:', rows);
           } finally {
             releaseBurst();
           }
           // Don’t claim success if every merchant tab failed (was returning true here before).
           return rows.some((r) => r.opened);
         } catch (e) {
-          console.error('[RefundGuardian] Connect + seed failed', e);
+          console.error('[Refyndra] Connect + seed failed', e);
           releaseBurst();
           showBanner('Could not sync or open merchant pages. Try again in a moment.', 6000);
           return false;
@@ -497,7 +491,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
     const onAck = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
       const d = e.data as { type?: string; ok?: boolean; at?: string; error?: string };
-      if (d?.type !== 'REFUNDGUARDIAN_TOKEN_ACK') return;
+      if (d?.type !== 'REFYNDRA_TOKEN_ACK') return;
       if (d.ok) {
         setTokenOk(true);
         const at = typeof d.at === 'string' ? d.at : new Date().toISOString();
@@ -539,10 +533,9 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
     void refreshStats();
     const id = window.setInterval(() => {
       void refreshStats();
-      router.refresh();
     }, STATS_POLL_MS);
     return () => window.clearInterval(id);
-  }, [refreshStats, router]);
+  }, [refreshStats]);
 
   useEffect(() => {
     if (extensionOk !== false) return;
@@ -575,7 +568,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
     };
 
     void tick();
-    const interval = window.setInterval(tick, 8000);
+    const interval = window.setInterval(tick, TOKEN_PUSH_INTERVAL_MS);
 
     const {
       data: { subscription },
@@ -611,7 +604,6 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
         if (ok) {
           setWaitingInstall(false);
           setExtensionOk(true);
-          console.log('✅ RefundGuardian AI installed successfully!');
           const openSeed = pendingOpenSeedAfterDetectRef.current;
           pendingOpenSeedAfterDetectRef.current = false;
           await runConnect({ force: true, openSeed });
@@ -648,7 +640,6 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
       if (already) {
         setWaitingInstall(false);
         pendingOpenSeedAfterDetectRef.current = false;
-        console.log('✅ RefundGuardian AI installed successfully!');
         const ok = await runConnect({
           force: true,
           openSeed: true,
@@ -672,17 +663,6 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
     })();
   };
 
-  const copyToken = async () => {
-    const supabase = createClient();
-    const t = await getSessionWithRetries(supabase);
-    if (!t) return;
-    await navigator.clipboard.writeText(t);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
-  };
-
-  const storeConfigured = !!getChromeWebStoreUrl();
-
   const fullyConnected = extensionOk === true && tokenOk === true;
   const needsInstall = extensionOk === false;
 
@@ -702,7 +682,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
         </p>
         <span
           className="flex items-center gap-1.5 text-[10px] text-zinc-500"
-          title="Stats refresh every 10s while this tab is open"
+          title="Stats refresh about every 5 minutes while this tab is open"
         >
           {statsLoading ? <Spinner /> : null}
           <span aria-live="polite">
@@ -713,24 +693,12 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
         </span>
       </div>
 
-      <p className="text-xs text-[var(--muted)] leading-relaxed">
-        <strong className="font-semibold text-[var(--foreground)]">First time only:</strong> sign in, install the
-        Chrome extension if prompted, then use the button below. One click connects your session and{' '}
-        <strong className="font-semibold text-[var(--foreground)]">opens your order pages</strong> on Amazon, Uber
-        Eats, Uber Rides, and DoorDash in new tabs so the extension can read them—usually under a minute.{' '}
-        <strong className="font-semibold text-[var(--foreground)]">After that,</strong> you don’t need to open those
-        pages again: we keep your token in sync and refresh stats in the background while this tab is open.
-      </p>
-      <p className="rounded-lg border border-[var(--border)] bg-[var(--background)]/60 px-3 py-2.5 text-[13px] leading-relaxed text-zinc-200">
-        Use the button below to <strong className="text-zinc-100">add the extension (Add to Chrome)</strong>,{' '}
-        <strong className="text-zinc-100">connect your session</strong>, and{' '}
-        <strong className="text-zinc-100">open your order pages once</strong> (seed tabs: Amazon → Uber Eats → Uber
-        Trips → DoorDash, opened together after sync). The extension opens them as <strong className="text-zinc-100">inactive
-        background tabs</strong> so the Dashboard keeps focus (extension 1.1.8+). If a tab shows a login screen,
-        sign in on that site (we can’t do that for you). After that,
-        everything keeps updating automatically in the background—{' '}
-        <strong className="text-zinc-100">keep this tab open</strong> for token sync and stats refresh.
-      </p>
+      <div className="space-y-1 text-xs leading-relaxed text-[var(--muted)]">
+        <p>One-click connects your stores.</p>
+        <p>
+          Keep this tab open in the background so Refyndra can monitor your orders and catch refunds automatically.
+        </p>
+      </div>
 
       {banner ? (
         <p className="text-xs font-medium text-amber-200" role="status">
@@ -850,8 +818,8 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
             : fullyConnected
               ? 'Open Amazon, Uber Eats, Uber Rides & DoorDash order pages again in new tabs (seed).'
               : needsInstall
-                ? 'Opens the Chrome Web Store to add RefundGuardian (Add to Chrome), then return here — we detect the extension automatically.'
-                : 'Connect your Supabase session and open your US merchant order pages once (seed tabs).'
+                ? 'Opens the Chrome Web Store to add Refyndra (Add to Chrome), then return here — we detect the extension automatically.'
+                : 'Connect your Refyndra session and open your order pages once so we can sync.'
         }
       >
         {extensionOk === null
@@ -893,48 +861,56 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
       <div className="space-y-1">
         <p
           className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
-          title="Orders scanned and compensation recovered from your account (refreshes every 10s)"
+          title="Orders scanned and compensation recovered from your account (refreshes about every 5 min while this tab is open)"
         >
           Per platform
         </p>
         {stats?.ordersUnavailable === 'missing_table' ? (
           <div className="space-y-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100/95">
             <p>
-              Order counts stay at 0 until the <code className="text-amber-200/90">orders</code> table exists in Supabase.
-              In Supabase → SQL → paste and run <code className="text-amber-200/90">supabase/quick_fix_orders.sql</code> (same as{' '}
-              <code className="text-amber-200/90">migrations/006_ensure_orders_complete.sql</code>), then refresh this page.
+              Order totals will show once your account setup is finished. Refresh this page after your administrator
+              completes setup, or contact Refyndra support.
             </p>
             <p className="border-t border-amber-500/20 pt-2 text-amber-100/90" dir="rtl" lang="ar">
-              عدد الطلبات يظل 0 حتى يُنشأ جدول <code className="text-amber-200/90" dir="ltr">orders</code> في Supabase. من لوحة Supabase
-              افتح SQL والصق محتوى الملف أعلاه وشغّله مرة واحدة، ثم حدّث الصفحة.
+              ستظهر أرقام الطلبات بعد اكتمال إعداد الحساب. حدّث الصفحة لاحقاً أو تواصل مع الدعم إذا استمرت المشكلة.
             </p>
           </div>
         ) : null}
-        <div className={variant === 'dashboard' ? 'grid gap-2 sm:grid-cols-2' : 'space-y-1'}>
+        <div
+          className={
+            variant === 'dashboard' ? 'grid gap-2 sm:grid-cols-2 sm:items-stretch' : 'space-y-1'
+          }
+        >
           {US_PLATFORMS.map((p) => {
             const orders = stats?.orderCounts[p.id] ?? 0;
             const cents = stats?.compensationCents[p.id] ?? 0;
             return (
               <details
                 key={p.id}
-                className="group rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2"
-                title={`${p.label}: US-only orders synced to RefundGuardian`}
+                className="group flex min-h-[4.5rem] flex-col rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2.5"
+                title={`${p.label}: US-only orders synced to Refyndra`}
               >
                 <summary className="cursor-pointer list-none text-xs font-medium text-[var(--foreground)] marker:content-none [&::-webkit-details-marker]:hidden">
-                  <span className="flex w-full items-center justify-between gap-2">
-                    <span>{p.label}</span>
-                    <span className="text-[10px] font-normal text-zinc-400" title="Orders scanned · compensation recovered">
-                      {orders} orders · {formatCents(cents)} recovered
+                  <span className="grid w-full grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+                    <span className="min-w-0">{p.label}</span>
+                    <span
+                      className="text-[10px] font-normal tabular-nums sm:text-right"
+                      title="Orders scanned · compensation recovered"
+                    >
+                      <span className="text-zinc-400">{orders} orders</span>
+                      <span className="text-zinc-600"> · </span>
+                      <span className="font-medium text-emerald-400">{formatCents(cents)}</span>
+                      <span className="text-zinc-500"> recovered</span>
                     </span>
                   </span>
                 </summary>
                 <div className="mt-2 space-y-1 border-t border-[var(--border)] pt-2 text-[11px] text-zinc-400">
                   <p>
-                    <span className="text-zinc-500">Orders scanned (DB):</span> {orders}
+                    <span className="text-zinc-500">Orders tracked:</span> {orders}
                   </p>
                   <p>
-                    <span className="text-zinc-500">Compensation recovered (refund_history):</span>{' '}
-                    {formatCents(cents)}
+                    <span className="text-zinc-500">Money back so far:</span>{' '}
+                    <span className="font-medium tabular-nums text-emerald-400">{formatCents(cents)}</span>
                   </p>
                 </div>
               </details>
@@ -942,24 +918,6 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
           })}
         </div>
       </div>
-
-      <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-3">
-        <button
-          type="button"
-          onClick={() => void copyToken()}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs text-[var(--foreground)] hover:bg-[var(--card-hover)]"
-          title="Manual fallback: copy Supabase access token to paste in the extension popup (Connect & Start Scanning usually does this automatically)"
-        >
-          {copied ? 'Copied!' : 'Copy session token'}
-        </button>
-      </div>
-
-      {!storeConfigured ? (
-        <p className="text-[10px] text-zinc-500">
-          Set <code className="text-zinc-400">NEXT_PUBLIC_CHROME_WEB_STORE_URL</code> for a direct Chrome Web Store
-          listing.
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -81,7 +81,7 @@ def _page(title: str, inner: str) -> str:
 async def home() -> str:
     """Serve the connect + scan mobile-friendly forms."""
     inner = f"""
-  <h1>RefundGuardian — Gmail</h1>
+  <h1>Refyndra — Gmail</h1>
   <p class="sub">Connect with a Google App Password. Scan transactional senders only.</p>
 
   <div class="card">

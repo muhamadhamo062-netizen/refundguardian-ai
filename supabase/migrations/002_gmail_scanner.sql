@@ -1,4 +1,4 @@
--- RefundGuardian AI - Gmail scanner and AI receipt parser schema
+-- Refyndra AI - Gmail scanner and AI receipt parser schema
 
 -- orders: normalized orders extracted from email receipts
 CREATE TABLE IF NOT EXISTS public.orders (

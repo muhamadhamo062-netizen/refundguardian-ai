@@ -1,13 +1,13 @@
-# RefundGuardian AI – Chrome Extension
+# Refyndra AI – Chrome Extension
 
 Manifest v3 extension that runs in the background and detects when you visit order or delivery pages (Amazon, Uber, Uber Eats, DoorDash, Grubhub). It sends order data to the backend so the system can detect delays and request compensation on your behalf.
 
 ## Setup
 
 1. In Chrome, go to `chrome://extensions/`, enable **Developer mode**, click **Load unpacked**, and select this `extension` folder.
-2. Log in at the RefundGuardian AI dashboard (email/password).
+2. Log in at the Refyndra AI dashboard (email/password).
 3. On the dashboard, click **Copy token for extension**.
-4. Click the RefundGuardian AI extension icon and paste the token, then **Save token**.
+4. Click the Refyndra AI extension icon and paste the token, then **Save token**.
 
 Orders from supported sites will be sent to the backend when you visit order/delivery pages. Ensure the app is running (e.g. `npm run dev` on port 3000) or use your deployed Vercel URL in `background.js` for production.
 
@@ -26,21 +26,21 @@ After the dashboard saves your **access token** (`SET_ACCESS_TOKEN`), the servic
 
 The extension injects `content.js` on **`http://localhost:3000/*`** and **`http://127.0.0.1:3000/*`** only (see `manifest.json`). On those URLs:
 
-- Console shows **`🟡 RefundGuardian TEST MODE ACTIVE`** and a yellow **RefundGuardian TEST** badge.
+- Console shows **`🟡 Refyndra TEST MODE ACTIVE`** and a yellow **Refyndra TEST** badge.
 - `PAGE_VISIT` is stored under **`lastDevPageTest`** in `chrome.storage.local` — not the production **`lastOrderPage`** key used for Amazon.
 
-After **any** `manifest.json` change: `chrome://extensions` → **Reload** on RefundGuardian AI, then **hard-refresh** the page (Ctrl+Shift+R).
+After **any** `manifest.json` change: `chrome://extensions` → **Reload** on Refyndra AI, then **hard-refresh** the page (Ctrl+Shift+R).
 
 ### If content script logs never appear
 
 1. Confirm **Errors** on the extension card (fix manifest until none).
 2. **Reload** the extension, then reload the tab.
-3. Open DevTools **Console** on the **page** (not only the service worker) — look for `[RefundGuardian]` and `🔥 RefundGuardian AI Injected Successfully`.
+3. Open DevTools **Console** on the **page** (not only the service worker) — look for `[Refyndra]` and `🔥 Refyndra AI Injected Successfully`.
 4. Ensure the URL matches `manifest` patterns (e.g. `https://www.amazon.com/...`, `http://localhost:3000/...`).
 
 ## Console warnings on Amazon (not caused by this extension)
 
-RefundGuardian AI does not send requests to:
+Refyndra AI does not send requests to:
 
 - `/suggestions`
 - Amazon autocomplete endpoints
@@ -50,7 +50,7 @@ If you see errors like:
 
 `HEAD https://www.amazon.eg/suggestions 405`
 
-This is coming from Amazon’s internal scripts or other browser extensions, not from RefundGuardian.
+This is coming from Amazon’s internal scripts or other browser extensions, not from Refyndra.
 
 ### How to verify
 

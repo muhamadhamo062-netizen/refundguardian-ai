@@ -1,4 +1,4 @@
--- RefundGuardian AI - Initial schema with indexes for scalability
+-- Refyndra AI - Initial schema with indexes for scalability
 -- Run this in Supabase SQL Editor or via Supabase CLI
 
 -- Enable UUID extension if not already enabled

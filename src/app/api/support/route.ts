@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Support email is not configured' }, { status: 503 });
   }
 
-  const subject = `[RefundGuardian] Support request from ${name}`;
+  const subject = `[Refyndra] Support request from ${name}`;
 
   try {
     const res = await fetch('https://api.3forms.com/submit', {

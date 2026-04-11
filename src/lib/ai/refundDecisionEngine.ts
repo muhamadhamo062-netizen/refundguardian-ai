@@ -101,7 +101,7 @@ export async function analyzeRefundDecisions(
     amount: i.amount,
   }));
 
-  const system = `You are RefundRadar's advisory refund decision engine.
+  const system = `You are Refyndra's advisory refund decision engine.
 You NEVER execute refunds, charge cards, or contact Amazon/Uber. You only analyze and suggest.
 Return ONLY valid JSON (no markdown) with this exact shape:
 {"decisions":[{"order_id":"string","refund_score":number,"confidence":number,"priority":"HIGH VALUE"|"FAST"|"MEDIUM","estimated_refund":number,"reason":"string","claim_message":"string"}]}

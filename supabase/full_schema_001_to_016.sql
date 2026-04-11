@@ -1,5 +1,5 @@
 -- ============================================================================
--- RefundGuardian AI — FULL SCHEMA (migrations 001–016 consolidated)
+-- Refyndra AI — FULL SCHEMA (migrations 001–016 consolidated)
 -- Run ONCE in Supabase SQL Editor on a project that has auth.users (Supabase Auth).
 -- Idempotent where possible (IF NOT EXISTS / DROP IF EXISTS). Safe to re-run only
 -- if you understand partial failures; prefer fresh project or backup first.
@@ -529,7 +529,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.rg_handle_new_user_seed_orders() IS
-  'After signup: seed 4 placeholder orders (one per platform) for RefundGuardian dashboard.';
+  'After signup: seed 4 placeholder orders (one per platform) for Refyndra dashboard.';
 
 CREATE TRIGGER on_auth_user_created_rg_seed_orders
   AFTER INSERT ON auth.users

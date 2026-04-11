@@ -16,7 +16,7 @@ export default async function RefundHistoryPage() {
       <div>
         <h1 className="text-2xl font-bold text-white sm:text-3xl">Compensation history</h1>
         <p className="mt-1 text-[var(--muted)]">
-          Compensation recovered through RefundGuardian AI (Autonomous Compensation Engine).
+          Compensation recovered through Refyndra AI (Autonomous Compensation Engine).
         </p>
       </div>
 

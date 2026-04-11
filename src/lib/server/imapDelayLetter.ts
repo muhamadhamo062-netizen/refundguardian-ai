@@ -78,26 +78,42 @@ export async function triggerDelayLetterIfNeeded(
     }
   }
 
-  const { error: insErr } = await admin.from('detected_refunds').insert({
-    user_id: order.user_id,
-    order_id: order.id,
-    reason:
-      `IMAP scan: delayed ~${delayMinutes} min. ` +
-      (letter ? 'AI compensation letter generated.' : 'OpenAI not configured or failed.'),
-    delay_minutes: delayMinutes,
-    potential_refund_cents: order.order_value_cents,
-    currency: order.currency ?? 'USD',
-    status: 'open',
-    letter_text: letter,
-  });
+  const { data: dr, error: insErr } = await admin
+    .from('detected_refunds')
+    .insert({
+      user_id: order.user_id,
+      order_id: order.id,
+      reason:
+        `IMAP scan: delayed ~${delayMinutes} min. ` +
+        (letter ? 'AI compensation letter generated.' : 'OpenAI not configured or failed.'),
+      delay_minutes: delayMinutes,
+      potential_refund_cents: order.order_value_cents,
+      currency: order.currency ?? 'USD',
+      status: 'open',
+      letter_text: letter,
+    })
+    .select('id')
+    .single();
 
   if (insErr) {
     console.warn('[imap-cron] detected_refunds insert', insErr.message);
     return { triggered: false, skipped: insErr.message };
   }
 
-  if (letter) {
-    console.log('[imap-cron] letter ok user=%s order=%s', order.user_id, order.id);
+  const { error: notifErr } = await admin.from('notifications').insert({
+    user_id: order.user_id,
+    type: 'refund_opportunity',
+    title: 'Refund opportunity found',
+    body: `Late delivery detected (~${delayMinutes} min vs promised time). Open your dashboard to review.`,
+    data: {
+      order_id: order.id,
+      detected_refund_id: dr?.id ?? null,
+      source: 'imap_sync',
+      provider: order.provider,
+    },
+  });
+  if (notifErr) {
+    console.warn('[imap-cron] notifications insert', notifErr.message);
   }
 
   return { triggered: true, delay_minutes: delayMinutes };

@@ -25,8 +25,8 @@ import {
   type AutoRefundActivityEntry,
   type AutoRefundPrefs,
 } from '@/lib/autoRefundPreferences';
-import { FREE_TRIAL_ORDER_DAYS } from '@/lib/billing/orderDateWindow';
 import { PRO_AI_ORDER_LIMIT } from '@/lib/billing/plan';
+import { PlatformOrderIcon } from '@/components/dashboard/PlatformOrderIcon';
 
 export type UnifiedOrderRow = {
   id: string;
@@ -187,8 +187,7 @@ export function AmazonOrdersDashboard({
         orderId: '—',
         platform: p,
         issue_type: issue,
-        message:
-          'Enhanced review logging enabled for this issue type (opt-in; does not trigger compensation).',
+        message: 'You turned on extra savings signals for this issue type.',
       });
       setActivityLog(loadAutoRefundActivity());
     }
@@ -242,9 +241,7 @@ export function AmazonOrdersDashboard({
       if (result.bridgeReceived) {
         if (!suppressExtensionHints) {
           if (result.error === 'no_extension_storage') {
-            setExtensionHint(
-              'Extension bridge failed — reload the page with RefundGuardian enabled (chrome://extensions).'
-            );
+            setExtensionHint('Refyndra couldn’t connect — refresh this page with the extension turned on.');
           } else if (result.error) {
             setExtensionHint(result.error);
           } else {
@@ -262,7 +259,7 @@ export function AmazonOrdersDashboard({
         setExtensionHint(
           (h) =>
             h ??
-            'Extension not detected — load unpacked extension from /extension, allow localhost:3000, then Reload on chrome://extensions.'
+            'Add the Refyndra browser extension, then refresh this page so we can sync your orders.'
         );
       }
       return [];
@@ -313,13 +310,10 @@ export function AmazonOrdersDashboard({
       };
 
       if (res.status === 401) {
-        apiMessage =
-          body.error ||
-          'Sign in to load orders from the API. Extension snapshots may still load below.';
+        apiMessage = body.error || 'Sign in to load your saved orders. Extension data may still appear below.';
       } else if (body.ok === false || !res.ok) {
         apiMessage =
-          body.error ||
-          (res.status === 503 ? 'Database not ready (run Supabase migrations).' : res.statusText);
+          body.error || (res.status === 503 ? 'We’re updating your account. Try again in a moment.' : res.statusText);
       } else {
         dbRows = (body.orders ?? []).map((r) => ({
           ...r,
@@ -441,8 +435,7 @@ export function AmazonOrdersDashboard({
           if (!cancelled) {
             setTrialLockedClient(true);
             setAiPlanHint(
-              body.error ??
-                'Unlock full compensation automation. Upgrade to Pro for unlimited scanning.'
+              body.error ?? 'Upgrade to Refyndra Pro for full smart scanning and savings tools.'
             );
           }
           router.refresh();
@@ -458,13 +451,11 @@ export function AmazonOrdersDashboard({
           const parts: string[] = [];
           if (body.ai_truncated) {
             parts.push(
-              `AI applies to the first ${body.ai_limit ?? maxAiOrdersPerBatch} orders this refresh (plan cap). Pro: up to ${PRO_AI_ORDER_LIMIT}.`
+              'Smart insights apply to your most recent orders this session. Pro includes a larger batch each time.'
             );
           }
           if (!isPro && body.free_trial_date_filtered) {
-            parts.push(
-              `Free scan only includes orders from roughly the last ${FREE_TRIAL_ORDER_DAYS} days (with a valid order date).`
-            );
+            parts.push('Your free scan focuses on recent orders so you can see value quickly.');
           }
           setAiPlanHint(parts.length > 0 ? parts.join(' ') : null);
         }
@@ -562,8 +553,7 @@ export function AmazonOrdersDashboard({
               orderId: r.orderId,
               platform,
               issue_type: issue,
-              message:
-                'Advisory compensation output ready — auto pipeline; optional log only.',
+              message: 'Savings insight ready — review anytime.',
             });
             changed = true;
           }
@@ -609,17 +599,16 @@ export function AmazonOrdersDashboard({
   const empty = !loading && filtered.length === 0;
 
   return (
-    <section className="mt-10 min-w-0 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
+    <section className="min-w-0 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
       <div className="flex flex-col gap-4 border-b border-[var(--border)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-lg font-semibold text-white">Synced orders</h2>
+          <h2 className="text-lg font-semibold text-white">Your orders</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Orders from your account and the browser extension. AI scoring runs in the background for advisory
-            estimates.
+            Pulled from your account and the Refyndra extension. We highlight possible savings — you decide what to do
+            next.
           </p>
           <p className="mt-2 text-xs text-zinc-500">
-            Outputs are advisory. Logging here does not start refund requests with merchants — you review outcomes
-            only.
+            Estimates are informational. Nothing is sent to stores until you take action.
           </p>
           {extensionHint && (
             <p className="mt-2 text-xs text-amber-400/90">{extensionHint}</p>
@@ -633,19 +622,20 @@ export function AmazonOrdersDashboard({
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex w-full max-w-md flex-wrap gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-3 py-2">
             <span className="w-full text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-              Enhance compensation (optional — may increase payout)
+              Boost savings signals (optional)
             </span>
             {(['amazon', 'uber_eats', 'uber_rides', 'doordash'] as const).map((p) => (
               <label
                 key={p}
-                className="flex cursor-pointer items-center gap-1.5 text-[10px] text-zinc-400"
+                className="flex cursor-pointer items-center gap-2 text-[10px] text-zinc-400"
               >
                 <input
                   type="checkbox"
-                  className="rounded border-[var(--border)] bg-[var(--background)]"
+                  className="shrink-0 rounded border-[var(--border)] bg-[var(--background)]"
                   checked={autoPrefs[p].enabled}
                   onChange={(e) => updatePlatformAuto(p, e.target.checked)}
                 />
+                <PlatformOrderIcon platform={p} size="compact" />
                 {p === 'amazon'
                   ? 'Amazon'
                   : p === 'uber_eats'
@@ -664,7 +654,7 @@ export function AmazonOrdersDashboard({
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
             />
-            Auto-refresh (5s)
+            Auto-refresh
           </label>
           <button
             type="button"
@@ -683,7 +673,7 @@ export function AmazonOrdersDashboard({
       {aiLocked && !isPro && (
         <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-4 sm:px-6">
           <p className="text-sm font-semibold text-amber-100">
-            Unlock full automation for compensation detection
+            Unlock full Refyndra Pro savings tools
           </p>
           {freeTrialPotentialUsd > 0 && (
             <p className="mt-2 text-xs text-amber-50/95">
@@ -693,8 +683,8 @@ export function AmazonOrdersDashboard({
             </p>
           )}
           <p className="mt-1 text-xs text-amber-200/90">
-            Further historical scanning and unlimited AI batches require Pro. Upgrade only through
-            explicit Stripe Checkout — no silent billing.
+            Deeper history and unlimited smart batches are included with Pro. You choose when to subscribe — no surprise
+            charges.
           </p>
           <Link
             href="/dashboard#plan"
@@ -708,7 +698,7 @@ export function AmazonOrdersDashboard({
       {!aiLocked && !isPro && freeTrialPotentialUsd > 0 && (
         <div className="border-b border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3 sm:px-6">
           <p className="text-xs font-medium text-emerald-100/95">
-            Auto compensation potential from this free scan (advisory):{' '}
+            Possible savings from this free scan (estimate):{' '}
             <span className="tabular-nums font-semibold">${freeTrialPotentialUsd.toFixed(2)}</span>
           </p>
         </div>
@@ -738,20 +728,19 @@ export function AmazonOrdersDashboard({
             onClick={() => setShowActivity((s) => !s)}
             className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium text-zinc-300 hover:bg-white/[0.02]"
           >
-            <span>Compensation activity (transparent log)</span>
+            <span>Activity</span>
             <span className="text-zinc-500">{showActivity ? '▼' : '▶'}</span>
           </button>
           {showActivity && (
             <ul className="max-h-44 space-y-1.5 overflow-y-auto border-t border-[var(--border)] px-4 py-3 text-[10px] leading-snug text-zinc-500">
               {activityLog.length === 0 ? (
                 <li>
-                  No entries yet. Turn on enhanced review for a platform and per-issue toggles to log advisory
-                  events.
+                  No activity yet. Turn on savings signals above to see updates here.
                 </li>
               ) : (
                 activityLog.map((e, i) => (
                   <li key={`${e.at}-${i}`}>
-                    <span className="font-mono text-zinc-600">{e.at.slice(0, 19)}</span>
+                    <span className="text-zinc-600">{new Date(e.at).toLocaleString()}</span>
                     {' · '}
                     <span className="text-zinc-400">{e.platform}</span> ·{' '}
                     {e.issue_type.replace(/_/g, ' ')} · {e.orderId}
@@ -789,9 +778,8 @@ export function AmazonOrdersDashboard({
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-zinc-400">
-              <span className="font-semibold tabular-nums text-zinc-200">{filtered.length}</span> synced order
-              {filtered.length === 1 ? '' : 's'} · advisory AI scores update when you refresh or when filters
-              match.
+              <span className="font-semibold tabular-nums text-zinc-200">{filtered.length}</span> order
+              {filtered.length === 1 ? '' : 's'} · savings signals refresh when you reload or change filters.
             </p>
             {scoredGrouped.platformOrder.map((platform) => {
               const list = scoredGrouped.groups.get(platform) ?? [];
@@ -810,15 +798,17 @@ export function AmazonOrdersDashboard({
                   key={platform}
                   className="rounded-xl border border-[var(--border)] bg-[var(--background)]/45 px-4 py-4"
                 >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-zinc-200">{label}</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <PlatformOrderIcon platform={platform} />
+                      <h3 className="text-sm font-semibold text-zinc-200">{label}</h3>
+                    </div>
                     <span className="text-xs text-zinc-500">
-                      {list.length} order{list.length === 1 ? '' : 's'} · {withAi} with AI advisory
+                      {list.length} order{list.length === 1 ? '' : 's'} · {withAi} with savings insight
                     </span>
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                    Advisory scores and filters apply to this synced set. Activity logging above reflects optional
-                    enhanced review events.
+                    Filters apply to this list. Activity above shows optional boosts you turned on.
                   </p>
                 </div>
               );

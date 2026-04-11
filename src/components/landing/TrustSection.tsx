@@ -2,9 +2,9 @@ import { AnimatedCounter } from '@/components/dashboard/AnimatedCounter';
 
 export function TrustSection() {
   const exampleRefunds = [
-    { name: 'John', amount: '$12', provider: 'Amazon' },
-    { name: 'Mike', amount: '$7', provider: 'Uber' },
-    { name: 'Sarah', amount: '$5', provider: 'Uber Eats' },
+    { name: 'John', amount: '$12', provider: 'Amazon', ago: '2 hours ago' },
+    { name: 'Mike', amount: '$7', provider: 'Uber', ago: '5 hours ago' },
+    { name: 'Sarah', amount: '$5', provider: 'Uber Eats', ago: '3 hours ago' },
   ];
 
   const steps = [
@@ -18,6 +18,7 @@ export function TrustSection() {
           fill="none"
           stroke="currentColor"
           strokeWidth={1.8}
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -33,8 +34,9 @@ export function TrustSection() {
       ),
     },
     {
-      title: 'Install Chrome Extension',
-      description: 'Add RefundGuardian AI to your browser with one click.',
+      title: 'Install Extension or Connect Gmail',
+      description:
+        'Add our extension to Chrome or securely link your Gmail in 60 seconds on mobile.',
       icon: (
         <svg
           className="h-6 w-6 text-teal-400"
@@ -42,6 +44,7 @@ export function TrustSection() {
           fill="none"
           stroke="currentColor"
           strokeWidth={1.8}
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -66,6 +69,7 @@ export function TrustSection() {
           fill="none"
           stroke="currentColor"
           strokeWidth={1.8}
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -87,6 +91,7 @@ export function TrustSection() {
           fill="none"
           stroke="currentColor"
           strokeWidth={1.8}
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -103,15 +108,18 @@ export function TrustSection() {
       <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row">
         {/* Social proof */}
         <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-            Trusted Results
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Real Refunds That U.S. Shoppers Actually Keep
+          </h2>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+            Trusted results
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-3 sm:items-end">
             <div>
               <p className="text-sm font-medium text-[var(--muted)]">
                 Total recovered
               </p>
-              <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">
+              <p className="mt-1 inline-block rounded-xl bg-emerald-500/[0.07] px-2 py-1 text-3xl font-bold tabular-nums tracking-tight text-white shadow-[0_0_44px_-10px_rgba(52,211,153,0.55)] ring-1 ring-emerald-400/25 [text-shadow:0_0_32px_rgba(16,185,129,0.35)] sm:text-4xl">
                 <AnimatedCounter value={2340120} prefix="$" />
               </p>
             </div>
@@ -133,23 +141,23 @@ export function TrustSection() {
             </div>
           </div>
           <p className="mt-3 text-sm text-[var(--muted)] max-w-md">
-            RefundGuardian AI runs in the background to catch delays you&apos;d
+            Refyndra AI runs in the background to catch delays you&apos;d
             usually miss — and turns them into real money back in your pocket.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {exampleRefunds.map(({ name, amount, provider }) => (
+            {exampleRefunds.map(({ name, amount, provider, ago }) => (
               <div
                 key={name}
-                className="rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3 text-xs shadow-sm transition-transform duration-150 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40"
+                className="rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3.5 text-xs shadow-sm transition-transform duration-150 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40"
               >
-                <p className="font-medium text-white">{name}</p>
-                <p className="mt-1 text-[var(--muted)]">
-                  recovered{' '}
-                  <span className="font-semibold text-[var(--accent)]">
-                    {amount}
-                  </span>{' '}
-                  from {provider}
+                <p className="leading-relaxed text-[13px] text-[var(--foreground)]/90 sm:text-sm">
+                  <span className="font-semibold text-white">{name}</span>
+                  <span className="text-[var(--muted)]"> recovered </span>
+                  <span className="font-semibold text-[var(--accent)]">{amount}</span>
+                  <span className="text-[var(--muted)]"> from {provider}</span>
+                  <span className="text-[var(--muted)]"> — </span>
+                  <span className="font-medium text-emerald-400/95">{ago}</span>
                 </p>
               </div>
             ))}
@@ -178,6 +186,7 @@ export function TrustSection() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={1.8}
+                    aria-hidden
                   >
                     <path
                       strokeLinecap="round"
@@ -196,6 +205,7 @@ export function TrustSection() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={1.8}
+                    aria-hidden
                   >
                     <path
                       strokeLinecap="round"
@@ -219,6 +229,7 @@ export function TrustSection() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={1.8}
+                    aria-hidden
                   >
                     <path
                       strokeLinecap="round"
@@ -239,17 +250,39 @@ export function TrustSection() {
                 </span>
                 <span>Personal messages</span>
               </li>
+              <li className="flex items-start gap-2 sm:items-center">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+                  <svg
+                    className="h-3.5 w-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                    />
+                  </svg>
+                </span>
+                <span>Your Private Shopping History</span>
+              </li>
             </ul>
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-6">
             <h3 className="text-base font-semibold text-white">
-              How RefundGuardian AI works
+              How Refyndra AI works
             </h3>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {steps.map((step, index) => (
                 <div key={step.title} className="flex gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--card)] ring-1 ring-[var(--border)]">
+                  <div
+                    className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--card)] ring-1 ring-[var(--border)]"
+                    aria-hidden
+                  >
                     {step.icon}
                   </div>
                   <div>

@@ -1,10 +1,10 @@
-# RefundGuardian — run all Supabase migrations (including 013 default seed for new users)
+# Refyndra — run all Supabase migrations (including 013 default seed for new users)
 # Usage: npm run db:migrate:win
 # Env: $env:SKIP_LINK="1"  |  $env:SUPABASE_PROJECT_REF="your-ref"
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Starting RefundGuardian migrations..."
+Write-Host "Starting Refyndra migrations..."
 
 $supabase = Get-Command supabase -ErrorAction SilentlyContinue
 if (-not $supabase) {
@@ -42,7 +42,7 @@ Write-Host "Pushing migrations (supabase db push)..."
 supabase db push
 if ($LASTEXITCODE -eq 0) {
   Write-Host ""
-  Write-Host "✅ All RefundGuardian migrations applied successfully!"
+  Write-Host "✅ All Refyndra migrations applied successfully!"
   Write-Host "   New users will automatically receive default orders for Amazon, Uber Eats, Uber, and DoorDash (migration 013)."
   Write-Host ""
   Write-Host "Local migration SQL files:"

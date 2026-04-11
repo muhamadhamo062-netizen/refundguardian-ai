@@ -8,6 +8,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 const ALGO = 'aes-256-gcm';
 const IV_LEN = 12;
 const TAG_LEN = 16;
+/** Legacy salt — do not change (would invalidate stored encrypted IMAP passwords). */
 const KDF_SALT = 'refundguardian-imap-v1';
 
 function deriveKey(): Buffer {

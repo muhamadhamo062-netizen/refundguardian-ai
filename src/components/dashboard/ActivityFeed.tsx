@@ -31,13 +31,11 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
     <div className="rounded-xl border border-[var(--border)] bg-gradient-to-b from-[var(--card)] to-[#0d0e12] shadow-lg shadow-black/20">
       <div className="border-b border-[var(--border)] px-5 py-4 sm:px-6">
         <h3 className="text-sm font-semibold text-white">Recent activity</h3>
-        <p className="mt-0.5 text-xs text-[var(--muted)]">
-          Syncs, claims, and compensation from your connected data
-        </p>
+        <p className="mt-0.5 text-xs text-[var(--muted)]">A simple timeline of what Refyndra noticed for you</p>
       </div>
       {items.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-[var(--muted)] sm:px-6">
-          No activity yet. Connect the extension and sync orders — events will appear here.
+          No activity yet. Connect Refyndra and your stores — updates will show up here.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--border)]/50">

@@ -1,10 +1,12 @@
 /**
  * Scheduled IMAP ingest (cron / external scheduler).
+ * Vercel Cron: `vercel.json` runs this every **4 hours** (`0 */4 * * *`, UTC).
+ * Users can run a manual scan anytime from the dashboard (Gmail → **Scan Now**).
  *
  * Security: requires `CRON_SECRET` in env and matching `x-cron-secret` or `Authorization: Bearer`.
  *
  * Deploy:
- * - Vercel: add `vercel.json` crons pointing here, set CRON_SECRET + SUPABASE_SERVICE_ROLE_KEY + GMAIL_IMAP_ENCRYPTION_KEY.
+ * - Vercel: `vercel.json` crons → this route; set CRON_SECRET + SUPABASE_SERVICE_ROLE_KEY + GMAIL_IMAP_ENCRYPTION_KEY.
  * - Else: `curl -H "x-cron-secret: $CRON_SECRET" https://your-domain/api/cron/imap-scan`
  */
 

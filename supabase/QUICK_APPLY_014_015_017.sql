@@ -1,5 +1,5 @@
 -- =============================================================================
--- RefundGuardian — one-shot apply for migrations 014, 015, 017 (Supabase SQL Editor)
+-- Refyndra — one-shot apply for migrations 014, 015, 017 (Supabase SQL Editor)
 -- Run when: extension_sync_events missing, imap_app_credentials missing, or IMAP scan columns missing.
 -- If a step errors with "already exists", skip that section or fix manually.
 -- =============================================================================

@@ -1,4 +1,4 @@
--- RefundGuardian AI — Point orders.user_id FK at auth.users (if table was created with public.users FK).
+-- Refyndra AI — Point orders.user_id FK at auth.users (if table was created with public.users FK).
 -- Safe to re-run: drops default name constraint and re-adds.
 
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_user_id_fkey;

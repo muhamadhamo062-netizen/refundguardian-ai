@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-/** Server-only: Stripe webhooks and admin tasks. Returns null if not configured. */
+/** Server-only: billing webhooks and admin tasks. Returns null if not configured. */
 export function createServiceRoleClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

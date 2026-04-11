@@ -5,6 +5,7 @@ import {
   isOrdersRelationMissingError,
   ordersTableMissingResponse,
 } from '@/lib/supabase/dbErrors';
+import { getPublicSiteUrl } from '@/lib/siteUrl';
 
 /** Set `ORDERS_API_DEBUG=1` to log server-side issues for this route (default: quiet). */
 function logOrdersApiDebug(...args: unknown[]) {
@@ -16,7 +17,7 @@ function logOrdersApiDebug(...args: unknown[]) {
 /** Always logged — post-ingest /analyze and /compensation failures (silent to client). */
 function logOrdersAutomationWarn(stage: string, orderId: string, detail: string) {
   const msg = detail.length > 800 ? `${detail.slice(0, 800)}…` : detail;
-  console.warn(`[RefundGuardian] [api/orders automation:${stage}] order_id=${orderId}`, msg);
+  console.warn(`[Refyndra] [api/orders automation:${stage}] order_id=${orderId}`, msg);
 }
 
 async function runAnalyzeAndCompensationChain(
@@ -330,9 +331,7 @@ export async function POST(request: Request) {
       const extractedAt = typeof body.extractedAt === 'string' ? body.extractedAt : null;
       const rows = body.orders as ExtensionOrderRow[];
 
-      const baseUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      const baseUrl = getPublicSiteUrl();
 
       const insertedIds: string[] = [];
       const errors: string[] = [];
@@ -475,9 +474,7 @@ export async function POST(request: Request) {
   }
 
   if (order?.id) {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const baseUrl = getPublicSiteUrl();
     await runAnalyzeAndCompensationChain(baseUrl, token, order.id);
   }
 

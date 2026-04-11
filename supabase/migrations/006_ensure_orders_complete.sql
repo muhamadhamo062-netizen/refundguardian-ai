@@ -1,4 +1,4 @@
--- RefundGuardian AI — Ensure public.orders exists (idempotent, safe to re-run).
+-- Refyndra AI — Ensure public.orders exists (idempotent, safe to re-run).
 -- user_id references auth.users(id) — canonical Supabase Auth user id (matches JWT sub).
 -- If you already created orders with FK to public.users, run 007_orders_user_id_auth_users.sql.
 

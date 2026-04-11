@@ -1,5 +1,5 @@
 -- ============================================================================
--- RefundGuardian AI — QUICK FIX: create public.orders (paste in Supabase SQL Editor)
+-- Refyndra AI — QUICK FIX: create public.orders (paste in Supabase SQL Editor)
 -- Run once if GET /api/health shows db: "missing_table"
 -- ============================================================================
 

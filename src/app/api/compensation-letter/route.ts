@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(secret ? { 'X-RefundGuardian-Secret': secret } : {}),
+        ...(secret ? { 'X-Refyndra-Secret': secret } : {}),
       },
       body: JSON.stringify(payload),
     });

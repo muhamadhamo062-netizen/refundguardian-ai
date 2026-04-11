@@ -1,4 +1,4 @@
-# RefundGuardian AI
+# Refyndra AI
 
 Production-ready web application that uses AI to detect delivery delays and file refund claims automatically.
 

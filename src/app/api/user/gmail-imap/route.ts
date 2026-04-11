@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
+import { normalizeAppPassword, isPlausibleAppPasswordLength } from '@/lib/appPasswordNormalize';
 import { createSupabaseClient } from '@/lib/supabase/api';
 import { encryptAppPassword } from '@/lib/server/gmailImapCrypto';
+import { verifyGmailImapCredentials } from '@/lib/server/gmailImapHelpers';
+import { ingestImapForUser, ingestOptionsForMobileFirstSync } from '@/lib/server/imapCronIngest';
+import { createServiceRoleClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * Mobile path: store Gmail + App Password encrypted, keyed by the signed-in user (same user_id as extension flow).
@@ -92,13 +97,36 @@ export async function POST(request: Request) {
     }
 
     const gmailAddress = typeof body.gmailAddress === 'string' ? normalizeGmail(body.gmailAddress) : '';
-    const appPassword = typeof body.appPassword === 'string' ? body.appPassword.trim() : '';
+    const appPassword =
+      typeof body.appPassword === 'string' ? normalizeAppPassword(body.appPassword) : '';
 
     if (!gmailAddress || !gmailAddress.includes('@')) {
       return NextResponse.json({ ok: false, error: 'Valid gmailAddress required' }, { status: 400 });
     }
-    if (appPassword.length < 8) {
-      return NextResponse.json({ ok: false, error: 'App Password looks invalid' }, { status: 400 });
+    if (!appPassword) {
+      return NextResponse.json(
+        { ok: false, error: 'Paste the App Password from Google (16 letters). Spaces are removed automatically.' },
+        { status: 400 }
+      );
+    }
+    if (!isPlausibleAppPasswordLength(appPassword)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            'The App Password should be about 16 characters after removing spaces. Copy it again from Google → Security → App passwords.',
+        },
+        { status: 400 }
+      );
+    }
+
+    let verify = await verifyGmailImapCredentials(gmailAddress, appPassword);
+    if (!verify.ok && verify.userMessage.toLowerCase().includes('timed out')) {
+      await new Promise((r) => setTimeout(r, 700));
+      verify = await verifyGmailImapCredentials(gmailAddress, appPassword);
+    }
+    if (!verify.ok) {
+      return NextResponse.json({ ok: false, error: verify.userMessage }, { status: 400 });
     }
 
     let ciphertext: string;
@@ -141,6 +169,19 @@ export async function POST(request: Request) {
         );
       }
       return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
+    }
+
+    const adminClient = createServiceRoleClient();
+    if (adminClient) {
+      void ingestImapForUser(
+        adminClient,
+        {
+          user_id: user.id,
+          gmail_address: gmailAddress,
+          encrypted_app_password: ciphertext,
+        },
+        ingestOptionsForMobileFirstSync()
+      ).catch((err) => console.error('[api/user/gmail-imap POST] background ingest', err));
     }
 
     return NextResponse.json({ ok: true });

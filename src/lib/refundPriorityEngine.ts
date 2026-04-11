@@ -1,5 +1,5 @@
 /**
- * RefundRadar / RefundGuardian — reusable priority scoring for UI + future API use.
+ * Refyndra — reusable priority scoring for UI + future API use.
  * Higher score = higher priority in dashboards.
  */
 

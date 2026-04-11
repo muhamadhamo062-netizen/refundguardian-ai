@@ -8,7 +8,7 @@ const storageKey = (userId: string) => `rg_first_recovery_banner_dismissed_${use
 
 type Props = {
   userId: string;
-  /** Total cents from refund_history */
+  /** Total recovered (USD, passed from the server for display). */
   totalCents: number;
   refundCount: number;
   isPro: boolean;

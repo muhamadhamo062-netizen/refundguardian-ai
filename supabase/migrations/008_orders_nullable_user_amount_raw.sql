@@ -1,4 +1,4 @@
--- RefundGuardian AI — Extend orders for extension -> API ingest (idempotent).
+-- Refyndra AI — Extend orders for extension -> API ingest (idempotent).
 -- - Allow user_id to be NULL (extension ingest without auth).
 -- - Add amount (numeric) and raw (jsonb) to match extension payload.
 -- - Keep existing columns for the rest of the app.

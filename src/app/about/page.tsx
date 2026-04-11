@@ -9,9 +9,9 @@ export default function AboutPage() {
     <>
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 pt-24 pb-20 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-white">About RefundGuardian AI</h1>
+        <h1 className="text-3xl font-bold text-white">About Refyndra AI</h1>
         <p className="mt-4 text-[var(--muted)]">
-          RefundGuardian AI helps you automatically spot missed refunds and compensation opportunities — turning
+          Refyndra AI helps you automatically spot missed refunds and compensation opportunities — turning
           overlooked issues into potential savings you may be owed.
         </p>
         <p className="mt-3 text-sm text-[var(--muted)]">

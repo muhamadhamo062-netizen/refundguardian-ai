@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'RefundGuardian AI',
-    short_name: 'RefundGuardian',
+    name: 'Refyndra AI',
+    short_name: 'Refyndra',
     description:
-      'Stop losing money on late deliveries. Autonomous Compensation Engine scans orders, detects issues, and calculates compensation automatically.',
+      'Get money back from late deliveries automatically. Refyndra detects delays on Amazon, Uber, DoorDash & more — no manual effort, no hidden fees.',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

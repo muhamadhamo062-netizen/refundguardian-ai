@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
-import { AnimatedCounter } from '@/components/dashboard/AnimatedCounter';
 import { MonitorCard } from '@/components/dashboard/MonitorCard';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
-import { RefundHistoryTable } from '@/components/dashboard/RefundHistoryTable';
+import { RefundStatusCards, type RefundStatusCardRow } from '@/components/dashboard/RefundStatusCards';
+import { TotalRecoveredHero } from '@/components/dashboard/TotalRecoveredHero';
+import { LockedCompensationCard } from '@/components/dashboard/LockedCompensationCard';
 import { ScanButton } from '@/components/dashboard/ScanButton';
 import { RecoveredRefundOpportunities } from '@/components/dashboard/RecoveredRefundOpportunities';
 import { ConnectionSetupSection } from '@/components/dashboard/ConnectionSetupSection';
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
     ? await supabase
         .from('users')
         .select(
-          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
+          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, paddle_customer_id, paddle_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
         )
         .eq('id', user.id)
         .maybeSingle()
@@ -88,10 +89,10 @@ export default async function DashboardPage() {
       supabase
         .from('detected_refunds')
         .select(
-          'id, created_at, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date)'
+          'id, created_at, potential_refund_cents, currency, status, delay_minutes, orders(merchant_name, order_date, provider)'
         )
         .order('created_at', { ascending: false })
-        .limit(5),
+        .limit(20),
       supabase
         .from('orders')
         .select('id, merchant_name, order_id, provider, created_at')
@@ -102,6 +103,29 @@ export default async function DashboardPage() {
         .select('id, event_type, order_count, created_at')
         .order('created_at', { ascending: false })
         .limit(15),
+      uid
+        ? supabase
+            .from('orders')
+            .select('refund_amount_cents, order_value_cents')
+            .eq('user_id', uid)
+            .ilike('status', 'refunded')
+        : Promise.resolve({ data: [] as { refund_amount_cents: number | null; order_value_cents: number | null }[] }),
+      uid
+        ? supabase
+            .from('orders')
+            .select('id, provider, merchant_name, refund_amount_cents, order_value_cents, updated_at')
+            .eq('user_id', uid)
+            .eq('status', 'pending_refund')
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              provider: string;
+              merchant_name: string | null;
+              refund_amount_cents: number | null;
+              order_value_cents: number | null;
+              updated_at: string;
+            }[],
+          }),
     ]),
     uid
       ? Promise.all([
@@ -135,6 +159,8 @@ export default async function DashboardPage() {
     { data: opportunities },
     { data: recentOrders },
     { data: extensionSyncs },
+    { data: refundedOrdersForSum },
+    { data: pendingRefundOrders },
   ] = mainData;
 
   const [deliveryOrderCountRes, rideOrderCountRes, foodOrderCountRes] = orderCountsData;
@@ -153,6 +179,7 @@ export default async function DashboardPage() {
       id: o.id,
       merchant_name: ordersArray[0]?.merchant_name ?? null,
       order_date: ordersArray[0]?.order_date ?? null,
+      order_provider: (ordersArray[0] as { provider?: string } | undefined)?.provider ?? null,
       potential_refund_cents: o.potential_refund_cents,
       currency: o.currency,
       status: o.status as 'open' | 'claimed' | 'refunded' | 'dismissed',
@@ -164,11 +191,65 @@ export default async function DashboardPage() {
     };
   });
 
-  const totalRecoveredCents = safeRefunds.reduce(
-    (sum, r) => sum + (r.amount_cents ?? 0),
-    0
-  );
+  const totalRecoveredCentsFromOrders = (refundedOrdersForSum ?? []).reduce((sum, row) => {
+    const r = row.refund_amount_cents;
+    if (typeof r === 'number' && r > 0) return sum + r;
+    return sum;
+  }, 0);
+
+  const totalRecoveredCents = totalRecoveredCentsFromOrders;
   const totalRecovered = totalRecoveredCents / 100;
+
+  const refundStatusCardRows: RefundStatusCardRow[] = [];
+
+  for (const r of safeRefunds.slice(0, 40)) {
+    refundStatusCardRows.push({
+      id: `paid-${r.id}`,
+      uiStatus: 'paid',
+      providerKey: r.provider ?? 'other',
+      merchantLabel: (r.provider ?? 'Refund').replace(/_/g, ' '),
+      amount_cents: r.amount_cents ?? 0,
+      currency: r.currency,
+      occurred_at: r.completed_at,
+    });
+  }
+
+  for (const o of pendingRefundOrders ?? []) {
+    refundStatusCardRows.push({
+      id: `proc-${o.id}`,
+      uiStatus: 'processing',
+      providerKey: o.provider,
+      merchantLabel: o.merchant_name?.trim() || o.provider.replace(/_/g, ' '),
+      amount_cents: o.refund_amount_cents ?? o.order_value_cents ?? 0,
+      currency: 'USD',
+      occurred_at: o.updated_at,
+    });
+  }
+
+  for (const o of safeOpportunities) {
+    if (o.status !== 'open') continue;
+    refundStatusCardRows.push({
+      id: `det-${o.id}`,
+      uiStatus: 'detected',
+      providerKey: o.order_provider ?? 'other',
+      merchantLabel: o.merchant_name?.trim() || 'Detected opportunity',
+      amount_cents: o.potential_refund_cents ?? 0,
+      currency: o.currency,
+      occurred_at: o.created_at,
+    });
+  }
+
+  refundStatusCardRows.sort((a, b) => {
+    const ta = a.occurred_at ? new Date(a.occurred_at).getTime() : 0;
+    const tb = b.occurred_at ? new Date(b.occurred_at).getTime() : 0;
+    return tb - ta;
+  });
+
+  const lockedOpportunityCentsFreeTier = !isProSubscriber(billingProfile)
+    ? safeOpportunities
+        .filter((o) => o.status === 'open')
+        .reduce((max, o) => Math.max(max, o.potential_refund_cents ?? 0), 0)
+    : 0;
 
   const pendingClaimsCount = safeClaims.filter((c) => c.status === 'pending').length;
   const submittedClaimsCount = safeClaims.filter((c) => c.status === 'submitted').length;
@@ -232,15 +313,6 @@ export default async function DashboardPage() {
     extensionSyncs: extensionSyncs ?? [],
   });
 
-  const refundHistoryRows = safeRefunds.map((r) => ({
-    id: r.id,
-    provider: r.provider ?? '—',
-    amount_cents: r.amount_cents ?? 0,
-    currency: r.currency,
-    completed_at: r.completed_at,
-    status: 'Completed',
-  }));
-
   const isPro = isProSubscriber(billingProfile);
 
   const { error: extSyncProbeErr } = await supabase
@@ -257,41 +329,43 @@ export default async function DashboardPage() {
         <Migration014Banner show={migration014Missing} />
         <DashboardHealthStrip />
       </div>
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Outcomes, insights, and activity
-          </p>
+
+      {/* Hero + scan */}
+      <section className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-stretch lg:gap-6">
+        <div className="min-w-0 flex-1">
+          <TotalRecoveredHero
+            totalDollars={totalRecovered}
+            subtitle="Real-time monitoring of your savings."
+          />
         </div>
-        <div className="flex w-full min-w-0 flex-wrap items-stretch gap-3 sm:w-auto sm:items-center sm:justify-end">
-          <ScanButton />
+        <div className="flex min-h-[44px] flex-col justify-center lg:w-56 lg:max-w-sm">
+          <ScanButton className="w-full lg:max-w-none" />
         </div>
-      </div>
+      </section>
+
+      <header className="mt-6 flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Dashboard</h1>
+        <p className="text-sm text-[var(--muted)]">A clear view of your refunds and savings — only your account</p>
+      </header>
 
       {user ? (
-        <div className="mt-5">
+        <div className="mt-5 space-y-4">
           <FirstRecoveryBanner
             userId={user.id}
             totalCents={totalRecoveredCents}
-            refundCount={safeRefunds.length}
+            refundCount={(refundedOrdersForSum ?? []).length}
             isPro={isPro}
           />
+          {!isPro && lockedOpportunityCentsFreeTier > 0 ? (
+            <LockedCompensationCard amountDollars={lockedOpportunityCentsFreeTier / 100} />
+          ) : null}
         </div>
       ) : null}
 
       <section className="mt-6" aria-labelledby="dashboard-setup-heading">
         <h2 id="dashboard-setup-heading" className="sr-only">
-          Connect orders — extension or Gmail
+          Quick start
         </h2>
-        <p className="mb-2 text-xs font-medium text-zinc-400">
-          On <strong className="font-semibold text-zinc-300">mobile</strong>, connect Gmail with an App Password. On{' '}
-          <strong className="font-semibold text-zinc-300">desktop</strong>, use the Chrome extension. Both save under your
-          same account so orders stay in one place.
-        </p>
         <ConnectionSetupSection variant="dashboard" />
       </section>
 
@@ -305,10 +379,12 @@ export default async function DashboardPage() {
         </Deferred>
       </div>
 
-      <section className="mt-8 sm:mt-10">
-        <Deferred>
-          <AiPriorityEngineTable />
-        </Deferred>
+      <section className="mt-8 sm:mt-10" aria-labelledby="ai-priority-heading">
+        <h2 id="ai-priority-heading" className="sr-only">
+          Savings tools
+        </h2>
+        {/* Not wrapped in Deferred: idle deferral felt like needing a second tap before the section mounted */}
+        <AiPriorityEngineTable />
       </section>
 
       <section className="mt-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)]/60 px-4 py-4 sm:grid-cols-2">
@@ -317,89 +393,76 @@ export default async function DashboardPage() {
           <p className="mt-1 text-2xl font-bold tabular-nums text-amber-200">{pendingClaimsCount}</p>
         </div>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Agent processed</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Updates tracked</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-violet-200">{submittedClaimsCount}</p>
         </div>
+        {pendingClaimsCount === 0 && submittedClaimsCount === 0 ? (
+          <p className="text-[11px] leading-snug text-zinc-500 sm:col-span-2">
+            Waiting for your first scan...
+          </p>
+        ) : null}
       </section>
 
-      <Deferred
-        fallback={
-          <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
-            Loading orders…
-          </div>
-        }
-      >
-        <AmazonOrdersDashboard
-          maxAiOrdersPerBatch={maxAiOrdersForUser(billingProfile)}
-          isPro={isPro}
-          serverAutonomousMode={Boolean(billingProfile?.autonomous_mode_enabled)}
-          trialScanLocked={isFreeTrialAiLocked(billingProfile)}
-        />
-      </Deferred>
-
-      {/* Total Refunds Recovered — KPI strip */}
-      <section className="mt-8 sm:mt-10">
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--card)] via-[var(--card)] to-[#0a0c10] p-6 shadow-2xl shadow-black/30 sm:p-8 md:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--accent)/8%,transparent)]" />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-              Total Compensation Recovered
-            </p>
-            <p className="mt-3 text-4xl font-bold tabular-nums text-[var(--accent)] drop-shadow-sm sm:text-5xl md:text-6xl lg:text-7xl">
-              <AnimatedCounter
-                value={totalRecovered}
-                prefix="$"
-                decimals={0}
-                duration={1800}
-              />
-            </p>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              All time · RefundRadar AI
-            </p>
-          </div>
+      {/* Mobile: recovered opportunities before activity; desktop: orders → monitors → recovered → activity */}
+      <div className="mt-8 flex flex-col gap-8 sm:gap-10">
+        <div className="order-1">
+          <Deferred
+            fallback={
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
+                Loading orders…
+              </div>
+            }
+          >
+            <AmazonOrdersDashboard
+              maxAiOrdersPerBatch={maxAiOrdersForUser(billingProfile)}
+              isPro={isPro}
+              serverAutonomousMode={Boolean(billingProfile?.autonomous_mode_enabled)}
+              trialScanLocked={isFreeTrialAiLocked(billingProfile)}
+            />
+          </Deferred>
         </div>
-      </section>
 
-      {/* 3 Monitoring cards */}
-      <section className="mt-8 sm:mt-10">
-        <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
-          <MonitorCard
-            title="Delivery Delay Monitor"
-            icon={<DeliveryIcon />}
-            ordersScanned={deliveryOrdersScanned}
-            claimsSubmitted={deliveryClaims.length}
-            refundsRecovered={deliveryRefunds.length}
-            accentColor="emerald"
-          />
-          <MonitorCard
-            title="Ride Delay Monitor"
-            icon={<RideIcon />}
-            ordersScanned={rideOrdersScanned}
-            claimsSubmitted={rideClaims.length}
-            refundsRecovered={rideRefunds.length}
-            accentColor="amber"
-          />
-          <MonitorCard
-            title="Order Compensation Monitor"
-            icon={<OrderIcon />}
-            ordersScanned={orderCompOrdersScanned}
-            claimsSubmitted={orderClaims.length}
-            refundsRecovered={orderRefunds.length}
-            accentColor="violet"
-          />
-        </div>
-      </section>
+        <section className="order-3 lg:order-2" aria-labelledby="monitor-cards-heading">
+          <h2 id="monitor-cards-heading" className="sr-only">
+            Monitoring by category
+          </h2>
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+            <MonitorCard
+              title="Delivery Delay Monitor"
+              icon={<DeliveryIcon />}
+              ordersScanned={deliveryOrdersScanned}
+              claimsSubmitted={deliveryClaims.length}
+              refundsRecovered={deliveryRefunds.length}
+              accentColor="emerald"
+            />
+            <MonitorCard
+              title="Ride Delay Monitor"
+              icon={<RideIcon />}
+              ordersScanned={rideOrdersScanned}
+              claimsSubmitted={rideClaims.length}
+              refundsRecovered={rideRefunds.length}
+              accentColor="amber"
+            />
+            <MonitorCard
+              title="Order Compensation Monitor"
+              icon={<OrderIcon />}
+              ordersScanned={orderCompOrdersScanned}
+              claimsSubmitted={orderClaims.length}
+              refundsRecovered={orderRefunds.length}
+              accentColor="violet"
+            />
+          </div>
+        </section>
 
-      {/* Recovered Refund Opportunities */}
-      <section className="mt-8 sm:mt-10">
-        <RecoveredRefundOpportunities items={safeOpportunities} />
-      </section>
+        <section className="order-2 lg:order-3">
+          <RecoveredRefundOpportunities items={safeOpportunities} />
+        </section>
 
-      {/* Activity Feed + Refund History side by side (stack on mobile) */}
-      <section className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-2">
-        <ActivityFeed items={activityItems} />
-        <RefundHistoryTable rows={refundHistoryRows} maxRows={10} />
-      </section>
+        <section className="order-4 grid gap-6 lg:grid-cols-2">
+          <ActivityFeed items={activityItems} />
+          <RefundStatusCards rows={refundStatusCardRows} maxCards={12} />
+        </section>
+      </div>
     </div>
   );
 }

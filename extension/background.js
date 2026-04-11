@@ -1,5 +1,5 @@
 /**
- * RefundGuardian AI — Service worker (Manifest V3)
+ * Refyndra AI — Service worker (Manifest V3)
  * Backend sync + local persistence for Amazon orders.
  *
  * Use ASCII only in this file — do not paste chat/translated text into the code (breaks parsing).
@@ -69,30 +69,20 @@ const UBER_RIDES_SENT_ORDER_IDS_KEY = 'uberRidesSentOrderIds';
 const MAX_LOCAL_ORDER_ENTRIES = 100;
 const MIN_BACKEND_INTERVAL_MS = 1800;
 
-/** `true` in dev if you need console noise for POST /api/orders (default: off). */
-const RG_VERBOSE_ORDERS_API = false;
-
 /**
  * `true` to print `logError(...)` to the console (default: off — avoids noisy red errors in MV3).
  * Set to true locally when debugging the service worker.
  */
 const RG_VERBOSE_ERRORS = false;
 
-/** `true` to print startup / onInstalled lines (default: off). */
-const RG_VERBOSE_LIFECYCLE = false;
-
-function rgLogLifecycle(...args) {
-  if (RG_VERBOSE_LIFECYCLE) console.log(...args);
-}
-
 let lastBackendPostAt = 0;
 
 function logError(message, err) {
   if (!RG_VERBOSE_ERRORS) return;
   if (err !== undefined && err !== null) {
-    console.error('[RefundGuardian] ERROR:', message, err);
+    console.error('[Refyndra] ERROR:', message, err);
   } else {
-    console.error('[RefundGuardian] ERROR:', message);
+    console.error('[Refyndra] ERROR:', message);
   }
 }
 
@@ -163,7 +153,6 @@ function registerMerchantBackgroundScanAlarms() {
       var now = Date.now();
       var last = r && typeof r.lastAlarmRegisterAt === 'number' ? r.lastAlarmRegisterAt : 0;
       if (now - last < 5 * 60 * 1000) {
-        rgLogLifecycle('[RefundGuardian] Alarms register debounced (5m)');
         return;
       }
       chrome.storage.local.set({ lastAlarmRegisterAt: now }, function () {
@@ -177,7 +166,6 @@ function registerMerchantBackgroundScanAlarms() {
             delayInMinutes: RG_PERIODIC_ALARM_MIN,
             periodInMinutes: RG_PERIODIC_ALARM_MIN,
           });
-          rgLogLifecycle('[RefundGuardian] Background merchant scan alarms registered');
         } catch (e) {
           logError('registerMerchantBackgroundScanAlarms inner', e);
         }
@@ -197,7 +185,6 @@ async function runBackgroundMerchantScan(reason) {
     ]);
     const token = typeof stored.accessToken === 'string' ? stored.accessToken : '';
     if (!token.length) {
-      rgLogLifecycle('[RefundGuardian] Background scan skipped:', reason, 'no token');
       return;
     }
     if (typeof stored.firstTokenSavedAt !== 'number') {
@@ -208,7 +195,6 @@ async function runBackgroundMerchantScan(reason) {
     const gateMs = Math.max(minMs, 25 * 60 * 1000);
     const last = stored.lastBackgroundScanAt;
     if (typeof last === 'number' && Date.now() - last < gateMs) {
-      rgLogLifecycle('[RefundGuardian] Background scan skipped:', reason, 'too soon after last scan');
       return;
     }
     let opened = 0;
@@ -227,7 +213,6 @@ async function runBackgroundMerchantScan(reason) {
       opened++;
     }
     await chromeStorageLocalSet({ lastBackgroundScanAt: Date.now() });
-    console.log('[RefundGuardian] Background merchant scan:', reason, 'inactive tabs:', opened);
   } catch (e) {
     logError('runBackgroundMerchantScan', e);
   }
@@ -311,7 +296,7 @@ async function setAmazonOrders(arr) {
       logError('setAmazonOrders', e);
       return { ok: false, quotaExceeded: false };
     }
-    console.warn('[RefundGuardian] Storage: quota hit — retrying with slimmed entries');
+    console.warn('[Refyndra] Storage: quota hit — retrying with slimmed entries');
     try {
       const slim = capped.map(slimAmazonOrderEntry);
       await chromeStorageLocalSet({
@@ -320,7 +305,7 @@ async function setAmazonOrders(arr) {
       return { ok: true };
     } catch (e2) {
       if (isQuotaError(e2)) {
-        console.warn('[RefundGuardian] Storage: quota still exceeded — minimal write');
+        console.warn('[Refyndra] Storage: quota still exceeded — minimal write');
         try {
           const minimal = slimAmazonOrderEntry(capped[0] || {});
           await chromeStorageLocalSet({ [AMAZON_ORDERS_STORAGE_KEY]: [minimal] });
@@ -392,7 +377,6 @@ async function appendAmazonOrders(entry) {
     if (arr.length > 0) {
       const last = arr[0];
       if (last && last.batchHash && entry.batchHash && last.batchHash === entry.batchHash) {
-        console.log('[RefundGuardian] Storage: duplicate batch skipped, hash=' + entry.batchHash);
         return { ok: true, skipped: true };
       }
     }
@@ -400,14 +384,10 @@ async function appendAmazonOrders(entry) {
     const result = await setAmazonOrders(next);
     if (!result.ok) {
       if (result.quotaExceeded) {
-        console.warn('[RefundGuardian] Storage: append failed — quota exceeded');
+        console.warn('[Refyndra] Storage: append failed — quota exceeded');
       }
       return { ok: false, quotaExceeded: !!result.quotaExceeded };
     }
-    console.log(
-      '[RefundGuardian] Storage: appended local snapshot, total entries=' + next.length,
-      'backendStatus=' + entry.backendStatus
-    );
     return { ok: true, skipped: false, count: next.length };
   } catch (e) {
     logError('appendAmazonOrders', e);
@@ -442,7 +422,6 @@ async function waitForRateLimit() {
   const now = Date.now();
   const wait = Math.max(0, MIN_BACKEND_INTERVAL_MS - (now - lastBackendPostAt));
   if (wait > 0) {
-    console.log('[RefundGuardian] Rate limit: waiting ' + wait + 'ms before backend POST');
     await new Promise((r) => setTimeout(r, wait));
   }
 }
@@ -460,9 +439,6 @@ async function postOrdersToBackend(payload, token) {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) {
       const delay = 400 * Math.pow(2, attempt - 1);
-      if (RG_VERBOSE_ORDERS_API) {
-        console.log('[RefundGuardian] Retrying POST /api/orders in ' + delay + 'ms (attempt ' + (attempt + 1) + '/3)');
-      }
       await new Promise((r) => setTimeout(r, delay));
     }
     try {
@@ -515,13 +491,6 @@ async function handleUberEatsOrdersDetected(message, sendResponse) {
   const url = typeof message.url === 'string' ? message.url : '';
   const extractedAt = typeof message.extractedAt === 'string' ? message.extractedAt : '';
 
-  console.log(
-    '[RefundGuardian] Received UBER_EATS_ORDERS_DETECTED',
-    'count=' + orders.length,
-    'url=' + url,
-    'at=' + extractedAt
-  );
-
   if (orders.length === 0) {
     sendResponse({ ok: true, received: 0, skipped: true });
     return;
@@ -548,7 +517,6 @@ async function handleUberEatsOrdersDetected(message, sendResponse) {
   });
 
   if (newOrders.length === 0) {
-    console.log('[RefundGuardian] Uber Eats: duplicate order_id(s) skipped (already sent)');
     sendResponse({ ok: true, received: 0, skipped: true, reason: 'deduped_order_id' });
     return;
   }
@@ -563,8 +531,7 @@ async function handleUberEatsOrdersDetected(message, sendResponse) {
   };
 
   if (!token) {
-    console.warn('[RefundGuardian] Uber Eats: No access token — backend skipped, local snapshot only');
-    console.log('[RefundGuardian] Backend status: skipped_no_token (uber eats)');
+    console.warn('[Refyndra] Uber Eats: No access token — backend skipped, local snapshot only');
     baseEntry.backendStatus = 'failed';
     baseEntry.error = 'Missing access token (save token in extension popup)';
     try {
@@ -595,12 +562,10 @@ async function handleUberEatsOrdersDetected(message, sendResponse) {
           extracted: o,
         },
       };
-      const result = await postOrdersToBackend(payload, token);
-      console.log('[RefundGuardian] Uber Eats backend status: success', 'order_id=' + o.orderId, JSON.stringify(result).slice(0, 800));
+      await postOrdersToBackend(payload, token);
       sentSet.add(String(o.orderId));
       results.push({ orderId: o.orderId, ok: true });
     } catch (apiErr) {
-      console.log('[RefundGuardian] Uber Eats backend status: fail', 'order_id=' + (o && o.orderId), apiErr && apiErr.message ? apiErr.message : apiErr);
       logError('Uber Eats POST failed', apiErr);
       results.push({
         orderId: o.orderId,
@@ -628,7 +593,6 @@ async function handleUberEatsOrdersDetected(message, sendResponse) {
   baseEntry.backendResults = results;
   try {
     await appendUberEatsOrders(baseEntry);
-    console.log('[RefundGuardian] Uber Eats local storage updated');
   } catch (e) {
     logError('appendUberEatsOrders after batch', e);
   }
@@ -646,13 +610,6 @@ async function handleUberRidesOrdersDetected(message, sendResponse) {
   const orders = Array.isArray(message.data) ? message.data : [];
   const url = typeof message.url === 'string' ? message.url : '';
   const extractedAt = typeof message.extractedAt === 'string' ? message.extractedAt : '';
-
-  console.log(
-    '[RefundGuardian] Received UBER_RIDES_ORDERS_DETECTED',
-    'count=' + orders.length,
-    'url=' + url,
-    'at=' + extractedAt
-  );
 
   if (orders.length === 0) {
     sendResponse({ ok: true, received: 0, skipped: true });
@@ -680,7 +637,6 @@ async function handleUberRidesOrdersDetected(message, sendResponse) {
   });
 
   if (newOrders.length === 0) {
-    console.log('[RefundGuardian] Uber Rides: duplicate order_id(s) skipped (already sent)');
     sendResponse({ ok: true, received: 0, skipped: true, reason: 'deduped_order_id' });
     return;
   }
@@ -695,8 +651,7 @@ async function handleUberRidesOrdersDetected(message, sendResponse) {
   };
 
   if (!token) {
-    console.warn('[RefundGuardian] Uber Rides: No access token — backend skipped, local snapshot only');
-    console.log('[RefundGuardian] Backend status: skipped_no_token (uber rides)');
+    console.warn('[Refyndra] Uber Rides: No access token — backend skipped, local snapshot only');
     baseEntry.backendStatus = 'failed';
     baseEntry.error = 'Missing access token (save token in extension popup)';
     try {
@@ -727,20 +682,10 @@ async function handleUberRidesOrdersDetected(message, sendResponse) {
           extracted: o,
         },
       };
-      const result = await postOrdersToBackend(payload, token);
-      console.log(
-        '[RefundGuardian] Uber Rides backend status: success',
-        'order_id=' + o.orderId,
-        JSON.stringify(result).slice(0, 800)
-      );
+      await postOrdersToBackend(payload, token);
       sentSet.add(String(o.orderId));
       results.push({ orderId: o.orderId, ok: true });
     } catch (apiErr) {
-      console.log(
-        '[RefundGuardian] Uber Rides backend status: fail',
-        'order_id=' + (o && o.orderId),
-        apiErr && apiErr.message ? apiErr.message : apiErr
-      );
       logError('Uber Rides POST failed', apiErr);
       results.push({
         orderId: o.orderId,
@@ -768,7 +713,6 @@ async function handleUberRidesOrdersDetected(message, sendResponse) {
   baseEntry.backendResults = results;
   try {
     await appendUberRidesOrders(baseEntry);
-    console.log('[RefundGuardian] Uber Rides local storage updated');
   } catch (e) {
     logError('appendUberRidesOrders after batch', e);
   }
@@ -786,13 +730,6 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
   const orders = Array.isArray(message.data) ? message.data : [];
   const url = typeof message.url === 'string' ? message.url : '';
   const extractedAt = typeof message.extractedAt === 'string' ? message.extractedAt : '';
-
-  console.log(
-    '[RefundGuardian] Received AMAZON_ORDERS_DETECTED',
-    'count=' + orders.length,
-    'url=' + url,
-    'at=' + extractedAt
-  );
 
   if (orders.length === 0) {
     sendResponse({ ok: true, received: 0, skipped: true });
@@ -821,14 +758,10 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
 
   try {
     if (!token) {
-      console.warn('[RefundGuardian] No access token — backend skipped, local fallback only');
-      console.log('[RefundGuardian] Backend status: skipped_no_token');
+      console.warn('[Refyndra] No access token — backend skipped, local fallback only');
       baseEntry.backendStatus = 'failed';
       baseEntry.error = 'Missing access token (save token in extension popup)';
-      const persistNoToken = await appendAmazonOrders(baseEntry);
-      if (persistNoToken.ok) {
-        console.log('[RefundGuardian] Local storage updated');
-      }
+      await appendAmazonOrders(baseEntry);
       sendResponse({ ok: true, received: orders.length, backend: 'skipped_no_token', local: true });
       return;
     }
@@ -841,16 +774,10 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
       extractedAt,
     };
 
-    if (RG_VERBOSE_ORDERS_API) {
-      console.log('[RefundGuardian] Sending to backend', 'orders=' + orders.length, 'POST /api/orders');
-    }
-
     try {
       const result = await postOrdersToBackend(payload, token);
-      console.log('[RefundGuardian] Backend success', JSON.stringify(result).slice(0, 2000));
       baseEntry.backendStatus = 'ok';
       baseEntry.backendResponse = result;
-      console.log('[RefundGuardian] Backend status: success');
 
       let extensionVersion = '1.0.0';
       try {
@@ -868,8 +795,6 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
       });
     } catch (apiErr) {
       logError('Backend failed', apiErr);
-      console.log('[RefundGuardian] Backend status: fail');
-      console.log('[RefundGuardian] Backend failed — persisting to local storage');
       baseEntry.backendStatus = 'failed';
       baseEntry.error = apiErr instanceof Error ? apiErr.message : String(apiErr);
     } finally {
@@ -877,10 +802,8 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
     }
 
     const persist = await appendAmazonOrders(baseEntry);
-    if (persist.ok) {
-      console.log('[RefundGuardian] Local storage updated');
-    } else if (persist.quotaExceeded) {
-      console.warn('[RefundGuardian] Local snapshot skipped (storage quota)');
+    if (!persist.ok && persist.quotaExceeded) {
+      console.warn('[Refyndra] Local snapshot skipped (storage quota)');
     }
 
     sendResponse({
@@ -902,15 +825,7 @@ async function handleAmazonOrdersDetected(message, sendResponse) {
   }
 }
 
-rgLogLifecycle('[RefundGuardian] background.js evaluated');
-rgLogLifecycle('RefundGuardian AI Service Worker Active');
-
-chrome.runtime.onInstalled.addListener((details) => {
-  try {
-    rgLogLifecycle('[RefundGuardian] onInstalled:', details.reason, 'previousVersion:', details.previousVersion);
-  } catch (e) {
-    logError('onInstalled', e);
-  }
+chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.storage.local.get(['accessToken'], function (r) {
       if (chrome.runtime.lastError) return;
@@ -993,11 +908,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         target: { tabId: tabId, allFrames: false },
         files: ['content.js'],
       })
-      .then(() => {
-        console.log('[RefundGuardian] programmatic inject OK tab', tabId, tab.url);
-      })
+      .then(() => {})
       .catch((err) => {
-        console.warn('[RefundGuardian] programmatic inject skipped:', err && err.message ? err.message : err);
+        console.warn('[Refyndra] programmatic inject skipped:', err && err.message ? err.message : err);
       });
   } catch (e) {
     logError('tabs.onUpdated', e);
@@ -1056,7 +969,7 @@ function handleOpenMerchantSeedUrls(message) {
       var u = typeof row.url === 'string' ? row.url : '';
       var key = typeof row.key === 'string' && row.key ? row.key : 'idx_' + i;
       if (!u || !isAllowedMerchantSeedUrl(u)) {
-        console.warn('[RefundGuardian] Merchant seed tab: ' + key + ' SKIP (invalid URL)');
+        console.warn('[Refyndra] Merchant seed tab: ' + key + ' SKIP (invalid URL)');
         results.push({ key: key, url: u, ok: false, error: 'invalid_or_disallowed_url' });
         continue;
       }
@@ -1064,7 +977,7 @@ function handleOpenMerchantSeedUrls(message) {
       var attempt = await createOne(u);
       if (!attempt.ok) {
         console.warn(
-          '[RefundGuardian] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown') + ' (retry)'
+          '[Refyndra] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown') + ' (retry)'
         );
         await new Promise(function (r) {
           setTimeout(r, 200);
@@ -1073,23 +986,16 @@ function handleOpenMerchantSeedUrls(message) {
       }
       if (attempt.ok) {
         opened++;
-        console.log(
-          '[RefundGuardian] Merchant seed tab: ' +
-            key +
-            ' OK (' +
-            (wantInactive ? 'inactive' : 'active') +
-            ', background-safe)'
-        );
         results.push({ key: key, url: u, ok: true });
       } else {
-        console.warn('[RefundGuardian] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown'));
+        console.warn('[Refyndra] Merchant seed tab: ' + key + ' FAIL — ' + (attempt.error || 'unknown'));
         results.push({ key: key, url: u, ok: false, error: attempt.error });
       }
     }
 
     return { ok: opened > 0, opened: opened, results: results };
   })().catch(function (e) {
-    console.error('[RefundGuardian] handleOpenMerchantSeedUrls', e);
+    console.error('[Refyndra] handleOpenMerchantSeedUrls', e);
     return { ok: false, opened: 0, results: [], error: e instanceof Error ? e.message : String(e) };
   });
 }
@@ -1213,7 +1119,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         testMode === true || provider === 'local_dev' || isLocalDevPageVisitUrl(url);
 
       if (treatAsDevTest) {
-        console.log('[RefundGuardian] PAGE_VISIT (dev test — not production Amazon data)', url);
         chrome.storage.local.set(
           {
             lastDevPageTest: {
@@ -1235,7 +1140,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true;
       }
 
-      console.log('[RefundGuardian] PAGE_VISIT (production)', provider, url);
       const at = Date.now();
       chrome.storage.local.set(
         {

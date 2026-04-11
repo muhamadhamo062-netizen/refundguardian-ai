@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -22,11 +23,19 @@ type RowSpec = {
   manual: Array<{ title: string; issueKey: IssueKey }>;
 };
 
+/** Suggested merchant inboxes (Uber/DoorDash). Amazon varies — user should enter a valid address. */
+const DEFAULT_SUPPORT_TO: Record<PlatformKey, string> = {
+  amazon: '',
+  uber_eats: 'support@uber.com',
+  uber_rides: 'support@uber.com',
+  doordash: 'help@doordash.com',
+};
+
 const ROWS: RowSpec[] = [
   {
     key: 'amazon',
     label: 'Amazon',
-    auto: { title: 'Late delivery', badge: '⭐', issueKey: 'late_delivery_auto' },
+    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
     manual: [
       { title: 'Missing item', issueKey: 'missing_item' },
       { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
@@ -36,7 +45,7 @@ const ROWS: RowSpec[] = [
   {
     key: 'uber_eats',
     label: 'Uber Eats',
-    auto: { title: 'Late delivery', badge: '⭐', issueKey: 'late_delivery_auto' },
+    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
     manual: [
       { title: 'Missing item', issueKey: 'missing_item' },
       { title: 'Cold food', issueKey: 'cold_food' },
@@ -46,7 +55,7 @@ const ROWS: RowSpec[] = [
   {
     key: 'uber_rides',
     label: 'Uber Rides',
-    auto: { title: 'Trip delay', badge: '⭐', issueKey: 'trip_delay_auto' },
+    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'trip_delay_auto' },
     manual: [
       { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
       { title: 'Trip issue', issueKey: 'trip_issue' },
@@ -56,7 +65,7 @@ const ROWS: RowSpec[] = [
   {
     key: 'doordash',
     label: 'DoorDash',
-    auto: { title: 'Late delivery', badge: '⭐', issueKey: 'late_delivery_auto' },
+    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
     manual: [
       { title: 'Missing item', issueKey: 'missing_item' },
       { title: 'Cold food', issueKey: 'cold_food' },
@@ -76,6 +85,7 @@ function emptySelection(): SelectionState {
   };
 }
 
+/** Per-user preferences; only meaningful when signed in (dashboard — not on public landing). */
 function storageKey(userId: string | null): string {
   return userId ? `rgAiPriority_v1_${userId}` : `rgAiPriority_v1_anon`;
 }
@@ -97,15 +107,93 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   const [draftOpen, setDraftOpen] = useState<{ platform: PlatformKey } | null>(null);
   const [draftText, setDraftText] = useState('');
   const [draftLoading, setDraftLoading] = useState(false);
+  const [toEmail, setToEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
+  const [gmailConnectHref, setGmailConnectHref] = useState('/login');
   const [toast, setToast] = useState<string | null>(null);
+  /** null = loading; false = template-only; true = AI-assisted drafts */
+  const [aiDraftingEnabled, setAiDraftingEnabled] = useState<boolean | null>(null);
+
+  const draftButtonLabel = useMemo(
+    () => (aiDraftingEnabled === false ? 'Use guided template' : 'Draft message'),
+    [aiDraftingEnabled]
+  );
+
+  const refreshAiStatus = useCallback(async () => {
+    try {
+      const r = await fetch('/api/ai/status', { cache: 'no-store' });
+      const d = (await r.json()) as { ok?: boolean; aiDraftingEnabled?: boolean };
+      setAiDraftingEnabled(d.aiDraftingEnabled === true);
+    } catch {
+      setAiDraftingEnabled(false);
+    }
+  }, []);
+
+  const refreshGmailStatus = useCallback(async () => {
+    if (!userId) {
+      setGmailConnected(null);
+      return;
+    }
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setGmailConnected(false);
+      return;
+    }
+    try {
+      const r = await fetch('/api/user/gmail-imap', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const d = (await r.json()) as { ok?: boolean; connected?: boolean };
+      setGmailConnected(!!d?.connected);
+    } catch {
+      setGmailConnected(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void refreshAiStatus();
+  }, [refreshAiStatus]);
 
   useEffect(() => {
     const supabase = createClient();
     void supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
       setLoadingUser(false);
+      setGmailConnectHref(user ? '/dashboard#gmail-connection' : '/login');
     });
   }, []);
+
+  useEffect(() => {
+    void refreshGmailStatus();
+  }, [refreshGmailStatus]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void refreshGmailStatus();
+      void refreshAiStatus();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshGmailStatus();
+        void refreshAiStatus();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [refreshAiStatus, refreshGmailStatus]);
+
+  useEffect(() => {
+    if (!draftOpen) return;
+    setToEmail(DEFAULT_SUPPORT_TO[draftOpen.platform]);
+  }, [draftOpen]);
 
   useEffect(() => {
     // Load per-user preferences once we know which key to use.
@@ -206,7 +294,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       const manual = sel[platform] || {};
       const selectedKeys = row?.manual.filter((m) => manual[m.issueKey]).map((m) => m.issueKey) ?? [];
       if (!selectedKeys.length) {
-        setToast('Select at least one manual issue first.');
+        setToast('Select at least one issue above first.');
         window.setTimeout(() => setToast(null), 2500);
         return;
       }
@@ -214,6 +302,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       setDraftOpen({ platform });
       setDraftLoading(true);
       setDraftText('');
+      void refreshGmailStatus();
 
       try {
         const res = await fetch('/api/ai/draft-compensation', {
@@ -227,8 +316,12 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             ', '
           )}\n\nPlease review and assist with an appropriate adjustment.\n\nThanks,\n[Your Name]`;
           setDraftText(fallback);
-          setToast(body.error || 'Could not generate AI draft. Showing template instead.');
-          window.setTimeout(() => setToast(null), 3500);
+          setToast(
+            aiDraftingEnabled === false
+              ? 'Guided template only — smart drafting can be enabled for your account by your team.'
+              : body.error || 'Could not generate a draft. Showing a simple template instead.'
+          );
+          window.setTimeout(() => setToast(null), 4500);
           return;
         }
         setDraftText(body.draft);
@@ -237,19 +330,26 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           ', '
         )}\n\nPlease review and assist with an appropriate adjustment.\n\nThanks,\n[Your Name]`;
         setDraftText(fallback);
-        setToast(e instanceof Error ? e.message : 'Draft request failed. Showing template instead.');
-        window.setTimeout(() => setToast(null), 3500);
+        setToast(
+          aiDraftingEnabled === false
+            ? 'Using a simple template — smart drafting isn’t enabled on this account yet.'
+            : e instanceof Error
+              ? e.message
+              : 'Draft request failed. Showing template instead.'
+        );
+        window.setTimeout(() => setToast(null), 4500);
       } finally {
         setDraftLoading(false);
       }
     },
-    [sel]
+    [aiDraftingEnabled, refreshGmailStatus, sel]
   );
 
   const closeDraft = useCallback(() => {
     setDraftOpen(null);
     setDraftText('');
     setDraftLoading(false);
+    setSending(false);
   }, []);
 
   const copyDraft = useCallback(async () => {
@@ -262,6 +362,61 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       window.setTimeout(() => setToast(null), 2500);
     }
   }, [draftText]);
+
+  const sendDraftFromGmail = useCallback(async () => {
+    if (!draftOpen || draftLoading || !draftText.trim()) return;
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setToast('Please log in to send email.');
+      window.setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    const trimmedTo = toEmail.trim();
+    if (!trimmedTo && draftOpen.platform === 'amazon') {
+      setToast('Enter a recipient email for Amazon (or use in-app help).');
+      window.setTimeout(() => setToast(null), 3500);
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch('/api/ai/send-compensation-draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          platform: draftOpen.platform,
+          draft: draftText,
+          ...(trimmedTo ? { to: trimmedTo } : {}),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        sent_to?: string;
+      };
+      if (!res.ok || body.ok !== true) {
+        setToast(body.error || 'Could not send email.');
+        window.setTimeout(() => setToast(null), 5000);
+        return;
+      }
+      setToast(
+        `Sent to ${body.sent_to ?? trimmedTo}. If the store approves a credit or refund, it will show in your email and Refyndra history — timing varies by merchant.`
+      );
+      window.setTimeout(() => setToast(null), 6500);
+      closeDraft();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Send failed.');
+      window.setTimeout(() => setToast(null), 4000);
+    } finally {
+      setSending(false);
+    }
+  }, [closeDraft, draftLoading, draftOpen, draftText, toEmail]);
 
   const headerRight = useMemo(() => {
     if (loadingUser) {
@@ -286,16 +441,108 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80">
-            AI Priority Engine
+            Smart savings
           </p>
           <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
-            Automatic delay handling + manual issue picks
+            Standard monitoring &amp; AI Auto-Pilot
           </h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Late delivery / trip delay is handled automatically. Select manual issues to unlock actions.
+            {aiDraftingEnabled === false ? (
+              <>
+                <strong className="font-medium text-zinc-300">Standard monitoring</strong> watches delays for you. Add
+                specific issues below, then edit a simple template — smarter drafting can be turned on by your team.
+              </>
+            ) : aiDraftingEnabled === true ? (
+              <>
+                <strong className="font-medium text-zinc-300">Standard monitoring</strong> tracks timing issues. Add any
+                extra issues — Refyndra can draft a clear message; the store still decides refunds or credits.
+              </>
+            ) : (
+              <>Checking your tools…</>
+            )}
           </p>
         </div>
         <div className="shrink-0">{headerRight}</div>
+      </div>
+
+      {aiDraftingEnabled === false ? (
+        <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-3 text-[11px] leading-relaxed text-amber-100 sm:px-6">
+          <strong className="font-semibold text-amber-50">Templates only for now.</strong> Your team can enable
+          AI-written messages for all supported stores. Sending still happens from <strong className="font-medium">your</strong>{' '}
+          Gmail when connected.
+        </div>
+      ) : null}
+
+      <div className="border-b border-[var(--border)] bg-white/[0.02] px-4 py-3 sm:px-6">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/90">Smart flow</p>
+        <ol className="mt-2 grid gap-2 text-[11px] leading-snug text-zinc-300 sm:grid-cols-2 lg:grid-cols-4">
+          <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
+            <span className="shrink-0 font-semibold text-emerald-400">1</span>
+            <span>
+              <span className="text-zinc-200">Connect Gmail</span> (App Password) so we can send{' '}
+              <strong className="font-medium text-white">from your address</strong>.{' '}
+              <Link
+                href={gmailConnectHref}
+                className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                Open setup
+              </Link>
+              {gmailConnected === true ? (
+                <span className="ml-1 inline-flex items-center rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                  Connected
+                </span>
+              ) : gmailConnected === false ? (
+                <span className="ml-1 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                  Not connected
+                </span>
+              ) : (
+                <span className="ml-1 text-zinc-500">…</span>
+              )}
+            </span>
+          </li>
+          <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
+            <span className="shrink-0 font-semibold text-emerald-400">2</span>
+            <span>
+              Choose <strong className="font-medium text-white">additional issues</strong> for that store (missing item,
+              cold food, etc.).
+            </span>
+          </li>
+          <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
+            <span className="shrink-0 font-semibold text-emerald-400">3</span>
+            <span>
+              Tap <strong className="font-medium text-white">Draft message</strong>
+              {aiDraftingEnabled === false
+                ? ' — you fill in a simple template yourself.'
+                : aiDraftingEnabled === true
+                  ? ' — Refyndra drafts a clear, store-specific message you can edit. Not a guarantee of payment.'
+                  : ' — …'}
+            </span>
+          </li>
+          <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
+            <span className="shrink-0 font-semibold text-emerald-400">4</span>
+            <span>
+              <strong className="font-medium text-white">Send from my Gmail</strong> or paste into the merchant app.
+              If they approve anything, it shows up in your email and in{' '}
+              <Link href={userId ? '/dashboard/refund-history' : '/login'} className="font-medium text-[var(--accent)] underline-offset-2 hover:underline">
+                Refund history
+              </Link>
+              .
+            </span>
+          </li>
+        </ol>
+        <p className="mt-3 text-[10px] leading-relaxed text-zinc-500">
+          {aiDraftingEnabled === false ? (
+            <>
+              Only <strong className="text-zinc-400">you</strong> send the final message for now. Refyndra never collects
+              money from stores for you.
+            </>
+          ) : (
+            <>
+              Refyndra never collects money from stores for you. Sending a message starts their process — credits or
+              refunds follow their rules.
+            </>
+          )}
+        </p>
       </div>
 
       {/* Mobile: card layout (no horizontal scroll) */}
@@ -312,16 +559,16 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 <div>
                   <p className="text-xs font-semibold text-white">{row.label}</p>
                   <p className="mt-1 text-[11px] text-[var(--muted)]">
-                    Issue #1 is auto-handled. Pick manual issues to unlock actions.
+                    Standard monitoring is on. Pick additional issues to unlock actions.
                   </p>
                 </div>
                 <button
                   type="button"
                   disabled
                   className="shrink-0 inline-flex min-h-[34px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 opacity-85"
-                  title="Late delivery / trip delay is handled automatically."
+                  title="Standard monitoring is active from your connected activity."
                 >
-                  Handled automatically
+                  Standard monitoring
                 </button>
               </div>
 
@@ -335,13 +582,13 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-emerald-200/70">
-                  Automatically detected from extension + timestamps.
+                  Detected from extension + timestamps.
                 </p>
               </div>
 
               <div className="mt-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Manual issues (optional)
+                  Additional issues (optional)
                 </p>
                 <div className="mt-2 grid gap-2">
                   {row.manual.map((m) => (
@@ -380,7 +627,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                     onClick={() => openDraft(row.key)}
                     className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-[12px] font-semibold text-zinc-200 hover:bg-white/[0.02]"
                   >
-                    Draft message
+                    {draftButtonLabel}
                   </button>
                 </div>
               ) : null}
@@ -398,10 +645,10 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 Platform
               </th>
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
-                Issue #1 (AUTO)
+                Standard monitoring
               </th>
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
-                Manual issues (optional)
+                Additional issues (optional)
               </th>
               <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
                 Actions
@@ -427,7 +674,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] text-emerald-200/70">
-                        Automatically detected from connected data.
+                        Detected from connected data.
                       </p>
                     </div>
                   </td>
@@ -461,9 +708,9 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                         type="button"
                         disabled
                         className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 opacity-80"
-                        title="Late delivery / trip delay is handled automatically."
+                        title="Standard monitoring is active from your connected activity."
                       >
-                        Handled automatically
+                        Standard monitoring
                       </button>
 
                       {hasManual ? (
@@ -481,7 +728,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                             onClick={() => openDraft(row.key)}
                             className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-[11px] font-semibold text-zinc-200 hover:bg-white/[0.02]"
                           >
-                            Draft message
+                            {draftButtonLabel}
                           </button>
                         </>
                       ) : null}
@@ -502,47 +749,109 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
 
       {draftOpen ? (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl shadow-black/40">
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 sm:px-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Draft message</p>
-                <p className="text-sm font-medium text-white">Copy and paste into support chat or email</p>
+          <div className="flex max-h-[min(92dvh,100%)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl shadow-black/40 sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3 sm:px-6">
+              <div className="min-w-0 pr-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  {aiDraftingEnabled === false ? 'Guided template' : 'Smart draft'}
+                </p>
+                <p className="text-sm font-medium text-white">
+                  {aiDraftingEnabled === false
+                    ? 'You edit the message'
+                    : 'Polished message — send or copy'}
+                </p>
+                <p className="mt-0.5 text-[11px] text-zinc-500">
+                  {aiDraftingEnabled === false ? (
+                    <>
+                      Smarter drafting can be enabled for your Refyndra account. Stores still decide every outcome.
+                    </>
+                  ) : (
+                    <>
+                      Approval of any refund or credit is up to the store. We help you ask clearly — we don’t guarantee
+                      an outcome.
+                    </>
+                  )}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={closeDraft}
-                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs text-zinc-200 hover:bg-white/[0.02]"
+                className="min-h-[44px] shrink-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-zinc-200 hover:bg-white/[0.02] sm:min-h-0 sm:py-1.5"
               >
                 Close
               </button>
             </div>
-            <div className="space-y-3 px-4 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+              {gmailConnected === false ? (
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                  Connect Gmail (App Password) in{' '}
+                  <Link href={gmailConnectHref} className="font-medium text-amber-50 underline underline-offset-2">
+                    dashboard setup
+                  </Link>{' '}
+                  to send from your address. You can still copy the text below — works on mobile and desktop.
+                </p>
+              ) : null}
+              <div>
+                <label htmlFor="comp-draft-to" className="mb-1 block text-xs font-medium text-zinc-400">
+                  To (merchant support)
+                </label>
+                <input
+                  id="comp-draft-to"
+                  type="email"
+                  value={toEmail}
+                  onChange={(e) => setToEmail(e.target.value)}
+                  placeholder={
+                    draftOpen?.platform === 'amazon'
+                      ? 'e.g. address from Help → Contact (if available)'
+                      : 'Pre-filled where we have a common inbox'
+                  }
+                  disabled={draftLoading || sending}
+                  className="w-full min-h-[48px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-base text-white placeholder:text-zinc-600 sm:min-h-0 sm:text-sm"
+                  autoComplete="email"
+                  inputMode="email"
+                />
+              </div>
               <textarea
                 value={draftLoading ? 'Generating draft…' : draftText}
                 onChange={(e) => setDraftText(e.target.value)}
                 rows={10}
                 readOnly={draftLoading}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-white"
+                className="w-full min-h-[200px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-base text-white sm:text-sm"
               />
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => void sendDraftFromGmail()}
+                  disabled={
+                    draftLoading ||
+                    sending ||
+                    !draftText.trim() ||
+                    gmailConnected === false ||
+                    (draftOpen?.platform === 'amazon' && !toEmail.trim())
+                  }
+                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-base font-semibold text-[var(--background)] disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm"
+                >
+                  {sending ? 'Sending…' : 'Send from my Gmail'}
+                </button>
                 <button
                   type="button"
                   onClick={() => void copyDraft()}
-                  disabled={draftLoading || !draftText.trim()}
-                  className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--background)]"
+                  disabled={draftLoading || !draftText.trim() || sending}
+                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-base font-semibold text-zinc-200 hover:bg-white/[0.02] disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm"
                 >
-                  Copy
+                  Copy text
                 </button>
                 <button
                   type="button"
                   onClick={closeDraft}
-                  className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-sm font-semibold text-zinc-200 hover:bg-white/[0.02]"
+                  disabled={sending}
+                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-base font-semibold text-zinc-200 hover:bg-white/[0.02] disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm"
                 >
-                  Done
+                  Cancel
                 </button>
               </div>
             </div>

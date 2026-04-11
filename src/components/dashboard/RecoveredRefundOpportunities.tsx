@@ -32,10 +32,13 @@ export function RecoveredRefundOpportunities({ items, actions }: Props) {
         {actions}
       </div>
       {!hasItems ? (
-        <p className="mt-4 text-sm text-[var(--muted)]">
-          No opportunities detected yet. Install the Chrome extension and visit
-          order pages to monitor deliveries automatically.
-        </p>
+        <div className="mt-4 space-y-2">
+          <p className="text-sm text-[var(--muted)]">
+            No opportunities detected yet. Install the Chrome extension and visit
+            order pages to monitor deliveries automatically.
+          </p>
+          <p className="text-[11px] text-zinc-500/90">Waiting for your first scan...</p>
+        </div>
       ) : (
         <div className="mt-4 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
           <table className="w-full min-w-0 text-xs sm:text-sm">

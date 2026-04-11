@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { signOut } from '@/app/actions/auth';
+import { openPaddleSubscriptionCheckout } from '@/lib/billing/paddleCheckoutClient';
 
 type Props = {
   potentialUsd: number | null;
 };
 
 /**
- * Post–free-scan conversion: Stripe Checkout only; no silent billing.
+ * Post–free-scan conversion: Secure Checkout only; no silent billing.
  */
 export function UpgradeScreen({ potentialUsd }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,14 +40,23 @@ export function UpgradeScreen({ potentialUsd }: Props) {
       });
       const body = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
-        url?: string;
+        provider?: string;
+        checkout?: {
+          priceId: string;
+          customerEmail: string | null;
+          customData: Record<string, string>;
+        };
         error?: string;
       };
-      if (!res.ok || body.ok !== true || !body.url) {
-        setErr(body.error || `Checkout unavailable (${res.status}). Configure Stripe env vars.`);
+      if (!res.ok || body.ok !== true) {
+        setErr(body.error || `Checkout unavailable (${res.status}). Configure Paddle env vars.`);
         return;
       }
-      window.location.href = body.url;
+      if (body.provider === 'paddle' && body.checkout) {
+        await openPaddleSubscriptionCheckout(body.checkout);
+        return;
+      }
+      setErr('Unexpected checkout response.');
     } finally {
       setBusy(null);
     }
@@ -58,11 +68,11 @@ export function UpgradeScreen({ potentialUsd }: Props) {
         Free discovery complete
       </p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-        Unlock full RefundGuardian AI
+        Unlock full Refyndra AI
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-[var(--muted)]">
         Your one-time complimentary scan is finished. Further AI analysis and automation require an
-        active Pro subscription — upgrade only through Stripe Checkout (no surprise charges).
+        active Pro subscription — upgrade only through Secure Checkout (no surprise charges).
       </p>
 
       {potentialUsd != null && potentialUsd > 0 && (
@@ -112,8 +122,8 @@ export function UpgradeScreen({ potentialUsd }: Props) {
       </div>
 
       <p className="mt-8 text-xs text-zinc-600">
-        By continuing you start a paid subscription through Stripe after you enter payment details —
-        never billed without your consent on Stripe&apos;s secure page.
+        By continuing you start a paid subscription through Secure Checkout after you enter payment details —
+        never billed without your consent on the secure checkout page.
       </p>
 
       <div className="mt-10 flex flex-col items-center gap-3 text-sm text-zinc-500">
