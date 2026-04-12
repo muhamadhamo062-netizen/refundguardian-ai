@@ -677,11 +677,11 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
   return (
     <div ref={cardRef} className={shellClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--muted)]" title="US storefronts: Amazon, Uber, Uber Eats, DoorDash">
+        <p className="text-base font-semibold text-zinc-200 sm:text-xs sm:font-medium sm:text-[var(--muted)]" title="US storefronts: Amazon, Uber, Uber Eats, DoorDash">
           One-click setup
         </p>
         <span
-          className="flex items-center gap-1.5 text-[10px] text-zinc-500"
+          className="flex items-center gap-1.5 text-sm font-medium text-zinc-300 sm:text-[10px] sm:font-normal sm:text-zinc-500"
           title="Stats refresh about every 5 minutes while this tab is open"
         >
           {statsLoading ? <Spinner /> : null}
@@ -693,7 +693,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
         </span>
       </div>
 
-      <div className="space-y-1 text-xs leading-relaxed text-[var(--muted)]">
+      <div className="space-y-1 text-base leading-relaxed text-zinc-200 sm:text-xs sm:text-[var(--muted)]">
         <p>One-click connects your stores.</p>
         <p>
           Keep this tab open in the background so Refyndra can monitor your orders and catch refunds automatically.
@@ -701,22 +701,22 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
       </div>
 
       {banner ? (
-        <p className="text-xs font-medium text-amber-200" role="status">
+        <p className="text-base font-semibold text-amber-100 sm:text-xs sm:font-medium sm:text-amber-200" role="status">
           {banner}
         </p>
       ) : null}
 
       {waitingInstall ? (
-        <p className="text-xs text-[var(--foreground)]" aria-live="polite">
+        <p className="text-base text-zinc-100 sm:text-xs sm:text-[var(--foreground)]" aria-live="polite">
           Waiting for the extension… install from the store, then return here.
         </p>
       ) : null}
 
       <div
-        className="rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-300"
+        className="rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-3 py-2.5 text-base leading-relaxed text-zinc-100 sm:text-[11px] sm:text-zinc-300"
         title="Three steps: install extension → connect session → background sync"
       >
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Current status</p>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-300 sm:text-[10px] sm:text-zinc-500">Current status</p>
         <div className="space-y-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="text-zinc-500">Extension:</span>
@@ -738,7 +738,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
               <span className="text-zinc-500">— (install extension first)</span>
             )}
           </div>
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[10px] text-zinc-500">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm font-medium text-zinc-300 sm:text-[10px] sm:font-normal sm:text-zinc-500">
             <span>Last sync:</span>
             <span>
               {lastSyncAt
@@ -767,7 +767,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
       </div>
 
       {fullyConnected ? (
-        <p className="text-center text-[11px] font-medium text-emerald-300">✓ Connected · Auto-running</p>
+        <p className="text-center text-base font-semibold text-emerald-200 sm:text-[11px] sm:font-medium sm:text-emerald-300">✓ Connected · Auto-running</p>
       ) : null}
 
       <button
@@ -805,7 +805,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
           else void onInstallAndSync({ suppressPostAckMerchantOpen: false });
         }}
         disabled={primaryActionDisabled}
-        className={`min-h-[44px] w-full touch-manipulation rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${
+        className={`min-h-[52px] w-full touch-manipulation rounded-lg px-4 py-3 text-base font-bold shadow-sm transition focus:outline-none focus-visible:ring-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-semibold ${
           fullyConnected
             ? 'border border-emerald-500/45 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25 focus-visible:ring-emerald-400/50'
             : needsInstall
@@ -834,7 +834,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
                   ? 'Install Extension & Start'
                   : 'Connect & Start Scanning'}
       </button>
-      <p className="text-center text-[10px] leading-snug text-zinc-500">
+      <p className="text-center text-sm leading-snug text-zinc-300 sm:text-[10px] sm:text-zinc-500">
         {fullyConnected
           ? 'Keep this Dashboard tab open for background sync (token + stats). Use the button above to re-open merchant order tabs when needed.'
           : 'Takes less than 60 seconds. One-time setup.'}
@@ -846,8 +846,8 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
           title="Activity log for the last Connect & Start Scanning run"
           aria-live="polite"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Activity</p>
-          <ul className="max-h-36 space-y-1.5 overflow-y-auto text-[11px] text-zinc-300">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 sm:text-[10px] sm:text-zinc-500">Activity</p>
+          <ul className="max-h-36 space-y-1.5 overflow-y-auto text-sm text-zinc-200 sm:text-[11px] sm:text-zinc-300">
             {activityLog.map((row) => (
               <li key={row.id} className="flex gap-2">
                 <span className="shrink-0 tabular-nums text-zinc-500">{row.t}</span>
@@ -860,13 +860,13 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
 
       <div className="space-y-1">
         <p
-          className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+          className="text-xs font-semibold uppercase tracking-wider text-zinc-300 sm:text-[10px] sm:text-zinc-500"
           title="Orders scanned and compensation recovered from your account (refreshes about every 5 min while this tab is open)"
         >
           Per platform
         </p>
         {stats?.ordersUnavailable === 'missing_table' ? (
-          <div className="space-y-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100/95">
+          <div className="space-y-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-base leading-relaxed text-amber-50 sm:text-[11px] sm:text-amber-100/95">
             <p>
               Order totals will show once your account setup is finished. Refresh this page after your administrator
               completes setup, or contact Refyndra support.
@@ -890,11 +890,11 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
                 className="group flex min-h-[4.5rem] flex-col rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2.5"
                 title={`${p.label}: US-only orders synced to Refyndra`}
               >
-                <summary className="cursor-pointer list-none text-xs font-medium text-[var(--foreground)] marker:content-none [&::-webkit-details-marker]:hidden">
+                <summary className="cursor-pointer list-none text-base font-semibold text-zinc-50 marker:content-none [&::-webkit-details-marker]:hidden sm:text-xs sm:font-medium sm:text-[var(--foreground)]">
                   <span className="grid w-full grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
                     <span className="min-w-0">{p.label}</span>
                     <span
-                      className="text-[10px] font-normal tabular-nums sm:text-right"
+                      className="text-sm font-medium tabular-nums text-zinc-200 sm:text-right sm:text-[10px] sm:font-normal"
                       title="Orders scanned · compensation recovered"
                     >
                       <span className="text-zinc-400">{orders} orders</span>
@@ -904,7 +904,7 @@ export function ExtensionToken({ variant = 'compact' }: { variant?: ExtensionTok
                     </span>
                   </span>
                 </summary>
-                <div className="mt-2 space-y-1 border-t border-[var(--border)] pt-2 text-[11px] text-zinc-400">
+                <div className="mt-2 space-y-1 border-t border-[var(--border)] pt-2 text-base text-zinc-200 sm:text-[11px] sm:text-zinc-400">
                   <p>
                     <span className="text-zinc-500">Orders tracked:</span> {orders}
                   </p>

@@ -140,7 +140,7 @@ export function ScanButton({ className }: ScanButtonProps) {
             ? 'AI scan in progress, please wait'
             : `Run AI analysis on up to ${DASHBOARD_AI_SCAN_ORDER_LIMIT} synced orders`
         }
-        className={`group relative inline-flex min-h-[44px] w-full touch-manipulation items-center justify-center overflow-hidden rounded-xl px-5 py-3 text-sm font-semibold transition-colors sm:w-auto sm:min-h-[44px] sm:px-6 ${
+        className={`group relative inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center overflow-hidden rounded-xl px-5 py-3.5 text-base font-bold transition-colors sm:w-auto sm:min-h-[44px] sm:px-6 sm:py-3 sm:text-sm sm:font-semibold ${
           loading
             ? 'cursor-wait bg-[var(--accent-muted)] text-[var(--background)] animate-rg-scan-ring'
             : 'bg-[var(--accent)] text-[var(--background)] hover:bg-[var(--accent-muted)] disabled:cursor-not-allowed disabled:opacity-60'
@@ -195,7 +195,7 @@ export function ScanButton({ className }: ScanButtonProps) {
           role="status"
           aria-live="polite"
         >
-          <p className="text-center text-[11px] font-medium leading-snug text-emerald-100/95">
+          <p className="text-center text-base font-semibold leading-snug text-emerald-50 sm:text-[11px] sm:font-medium sm:text-emerald-100/95">
             Analyzing your synced orders — looking for refund opportunities.
           </p>
           <div className="mt-2 flex justify-center gap-1.5" aria-hidden>
@@ -203,19 +203,19 @@ export function ScanButton({ className }: ScanButtonProps) {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-bounce [animation-delay:-0.15s]" />
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-bounce" />
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-emerald-200/60">
+          <p className="mt-1.5 text-center text-sm text-emerald-100/90 sm:text-[10px] sm:text-emerald-200/60">
             Background email &amp; sync jobs keep adding data — this scan uses your latest orders.
           </p>
         </div>
       ) : null}
 
       {message ? (
-        <p className="max-w-full text-center text-xs text-emerald-400/90 sm:max-w-xs sm:text-right">
+        <p className="max-w-full text-center text-base font-medium text-emerald-300 sm:max-w-xs sm:text-right sm:text-xs sm:font-normal sm:text-emerald-400/90">
           {message}
         </p>
       ) : null}
       {error ? (
-        <p className="max-w-full text-center text-xs text-red-400 sm:max-w-xs sm:text-right">{error}</p>
+        <p className="max-w-full text-center text-base font-medium text-red-300 sm:max-w-xs sm:text-right sm:text-xs sm:font-normal sm:text-red-400">{error}</p>
       ) : null}
     </div>
   );

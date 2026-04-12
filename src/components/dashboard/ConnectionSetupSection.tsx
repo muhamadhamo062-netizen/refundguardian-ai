@@ -86,18 +86,18 @@ export function ConnectionSetupSection({ variant = 'dashboard' }: Props) {
         className="min-w-0 scroll-mt-28 space-y-4"
       >
         <div>
-          <h3 id="mobile-sync-heading" className="text-base font-semibold tracking-tight text-white">
+          <h3 id="mobile-sync-heading" className="text-lg font-semibold tracking-tight text-white sm:text-base">
             Refyndra Mobile Sync
           </h3>
-          <p className="mt-2 text-sm font-medium leading-snug text-emerald-100/95">
+          <p className="mt-2 text-base font-semibold leading-snug text-emerald-50 sm:text-sm sm:font-medium sm:text-emerald-100/95">
             Your phone is now a refund hunter. No app install needed. 100% Secure & Automated.
           </p>
         </div>
         <ol className="grid gap-3">
           <li className="rounded-xl border border-[var(--border)] bg-[var(--card)]/85 px-4 py-3.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-400">Step 1</p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">Enable Secure Access</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-300 sm:text-[10px] sm:text-emerald-400">Step 1</p>
+            <p className="mt-1 text-base font-bold text-zinc-50 sm:text-sm sm:font-semibold sm:text-zinc-100">Enable Secure Access</p>
+            <p className="mt-1.5 text-base leading-relaxed text-zinc-200 sm:text-xs sm:text-zinc-400">
               Generate a unique 16-character App Password from your Google account.{' '}
               <a
                 href={GOOGLE_APP_PASSWORD_HOWTO}
@@ -110,16 +110,16 @@ export function ConnectionSetupSection({ variant = 'dashboard' }: Props) {
             </p>
           </li>
           <li className="rounded-xl border border-[var(--border)] bg-[var(--card)]/85 px-4 py-3.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-400">Step 2</p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">Link your Receipts</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-300 sm:text-[10px] sm:text-emerald-400">Step 2</p>
+            <p className="mt-1 text-base font-bold text-zinc-50 sm:text-sm sm:font-semibold sm:text-zinc-100">Link your Receipts</p>
+            <p className="mt-1.5 text-base leading-relaxed text-zinc-200 sm:text-xs sm:text-zinc-400">
               Paste your secure code below. Refyndra encrypts this to only read delivery timestamps.
             </p>
           </li>
           <li className="rounded-xl border border-[var(--border)] bg-[var(--card)]/85 px-4 py-3.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-400">Step 3</p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">Automatic Recovery Active</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-300 sm:text-[10px] sm:text-emerald-400">Step 3</p>
+            <p className="mt-1 text-base font-bold text-zinc-50 sm:text-sm sm:font-semibold sm:text-zinc-100">Automatic Recovery Active</p>
+            <p className="mt-1.5 text-base leading-relaxed text-zinc-200 sm:text-xs sm:text-zinc-400">
               Sit back. We&apos;ll hunt for refunds in your Gmail 24/7 and notify you the second we win.
             </p>
           </li>

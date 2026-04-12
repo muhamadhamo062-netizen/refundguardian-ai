@@ -221,11 +221,11 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
 
   const inputGmailClass = mobileSync
     ? 'w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-lg text-white placeholder:text-zinc-600'
-    : 'w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white';
+    : 'w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3.5 text-lg text-white placeholder:text-zinc-500 sm:min-h-[44px] sm:px-3 sm:py-2 sm:text-base sm:placeholder:text-[var(--muted)]';
 
   const inputPwClass = mobileSync
     ? 'w-full min-h-[60px] rounded-xl border-2 border-emerald-500/35 bg-[var(--background)] px-4 py-4 font-mono text-lg leading-relaxed tracking-wide text-white placeholder:text-zinc-600'
-    : 'w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-white';
+    : 'w-full min-h-[56px] rounded-xl border-2 border-emerald-500/30 bg-[var(--background)] px-4 py-3.5 font-mono text-lg leading-relaxed tracking-wide text-white placeholder:text-zinc-500 sm:min-h-[44px] sm:border sm:border-[var(--border)] sm:px-3 sm:py-2 sm:text-base sm:placeholder:text-[var(--muted)]';
 
   return (
     <div
@@ -235,8 +235,8 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
 
       {!mobileSync ? (
         <div>
-          <p className="text-sm font-semibold text-[var(--foreground)]">Secure inbox sync</p>
-          <p className="mt-1 text-xs text-[var(--muted)] leading-relaxed">
+          <p className="text-base font-semibold text-zinc-50 sm:text-sm sm:text-[var(--foreground)]">Secure inbox sync</p>
+          <p className="mt-1 text-base text-[var(--muted)] leading-relaxed sm:text-xs">
             One-time setup: paste your <strong className="text-zinc-200">Secure Sync Code</strong> (Google App
             Password). 2-Step Verification must be on. This also unlocks{' '}
             <strong className="text-zinc-200">Send from my Gmail</strong> in the AI Priority Engine (draft with AI,
@@ -246,7 +246,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
         </div>
       ) : !connected && mobileSync && !connectGmailOpen ? (
         <div className="space-y-3 text-center">
-          <p className="text-sm leading-relaxed text-zinc-400">
+          <p className="text-base leading-relaxed text-zinc-200 sm:text-sm sm:text-zinc-400">
             Link Gmail with a secure App Password — no app install. Tap below to see the setup steps and enter your
             details.
           </p>
@@ -259,7 +259,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
           </button>
         </div>
       ) : !connected && mobileSync && connectGmailOpen ? (
-        <p className="text-center text-sm leading-relaxed text-zinc-400">
+        <p className="text-center text-base leading-relaxed text-zinc-200 sm:text-sm sm:text-zinc-400">
           Enter your Gmail and paste your secure code below — we encrypt it and only read delivery-related receipts.
         </p>
       ) : null}
@@ -267,7 +267,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
       {!connected && !mobileSync ? <GmailSecureSyncGuide /> : null}
 
       {connected ? (
-        <p className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+        <p className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-base text-emerald-50 sm:text-sm sm:text-emerald-100">
           Connected: <span className="font-medium">{savedEmail ?? 'Gmail'}</span>
         </p>
       ) : null}
@@ -286,7 +286,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
           >
             {scanLoading ? 'Scanning Gmail…' : mobileSync ? 'Sync Now' : 'Scan Now'}
           </button>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-zinc-300">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-zinc-200 sm:text-xs sm:text-zinc-300">
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <span>
                 <span className="text-zinc-400">Last scan:</span>{' '}
@@ -305,7 +305,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
             ) : null}
           </div>
           {mobileSync ? (
-            <p className="text-center text-[11px] font-medium tracking-wide text-emerald-200/90">
+            <p className="text-center text-sm font-semibold tracking-wide text-emerald-100 sm:text-[11px] sm:font-medium sm:text-emerald-200/90">
               🔒 Bank-Level Encryption
             </p>
           ) : null}
@@ -315,7 +315,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
       {!connected && (!mobileSync || connectGmailOpen) ? (
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
           <div>
-            <label htmlFor="rg-gmail" className={`mb-1 block ${mobileSync ? 'text-sm font-medium text-zinc-300' : 'text-xs text-zinc-400'}`}>
+            <label htmlFor="rg-gmail" className={`mb-1 block ${mobileSync ? 'text-sm font-medium text-zinc-300' : 'text-base font-semibold text-zinc-100 sm:text-xs sm:font-normal sm:text-zinc-400'}`}>
               Gmail address
             </label>
             <input
@@ -331,15 +331,15 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
             />
           </div>
           <div>
-            <label htmlFor="rg-app-pw" className={`mb-1 block ${mobileSync ? 'text-sm font-semibold text-zinc-100' : 'text-sm font-medium text-zinc-200'}`}>
+            <label htmlFor="rg-app-pw" className={`mb-1 block ${mobileSync ? 'text-sm font-semibold text-zinc-100' : 'text-base font-bold text-zinc-50 sm:text-sm sm:font-medium sm:text-zinc-200'}`}>
               {mobileSync ? 'App password (16 characters)' : 'Secure Sync Code'}
             </label>
             {!mobileSync ? (
-              <p className="mb-1.5 text-[11px] leading-snug text-zinc-500">
+              <p className="mb-1.5 text-base leading-snug text-zinc-300 sm:text-[11px] sm:text-zinc-500">
                 Invoice-only access — this code does not give us access to your private messages.
               </p>
             ) : (
-              <p className="mb-2 text-[11px] leading-snug text-zinc-500">
+              <p className="mb-2 text-base leading-snug text-zinc-300 sm:text-[11px] sm:text-zinc-500">
                 Paste the code from Google — spaces are fine.
               </p>
             )}
@@ -363,22 +363,22 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
             {loading ? 'Saving…' : mobileSync ? 'Sync Now' : 'Save & enable sync'}
           </button>
           {mobileSync ? (
-            <p className="text-center text-[11px] font-medium tracking-wide text-emerald-200/90">
+            <p className="text-center text-sm font-semibold tracking-wide text-emerald-100 sm:text-[11px] sm:font-medium sm:text-emerald-200/90">
               🔒 Bank-Level Encryption
             </p>
           ) : (
-            <p className="text-[13px] leading-snug text-zinc-500">{TRUST_COPY}</p>
+            <p className="text-base leading-snug text-zinc-300 sm:text-[13px] sm:text-zinc-500">{TRUST_COPY}</p>
           )}
         </form>
       ) : null}
 
       {status ? (
-        <p className="text-xs font-medium text-emerald-300" role="status">
+        <p className="text-base font-semibold text-emerald-200 sm:text-xs sm:font-medium sm:text-emerald-300" role="status">
           {status}
         </p>
       ) : null}
       {error ? (
-        <p className="text-xs font-medium text-rose-300" role="alert">
+        <p className="text-base font-semibold text-rose-200 sm:text-xs sm:font-medium sm:text-rose-300" role="alert">
           {error}
         </p>
       ) : null}
@@ -388,7 +388,7 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
           type="button"
           onClick={() => void onDisconnect()}
           disabled={loading}
-          className="w-full min-h-[44px] rounded-xl border border-[var(--border)] py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+          className="w-full min-h-[48px] rounded-xl border border-[var(--border)] py-3 text-base font-semibold text-zinc-100 hover:bg-zinc-800 disabled:opacity-50 sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-normal sm:text-zinc-300"
         >
           Remove saved Gmail connection
         </button>

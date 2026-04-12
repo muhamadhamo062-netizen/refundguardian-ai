@@ -51,7 +51,7 @@ export default async function DashboardLayout({
       <DashboardRefundCelebration />
       <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
         {children}
-        <p className="mt-10 border-t border-[var(--border)] pt-6 text-center text-[11px] leading-relaxed text-zinc-500 sm:text-xs">
+        <p className="mt-10 border-t border-[var(--border)] pt-6 text-center text-base leading-relaxed text-zinc-400 sm:text-xs sm:text-[11px] sm:text-zinc-500">
           🔒 Bank-Level Security — Your data is encrypted and private.
         </p>
       </main>

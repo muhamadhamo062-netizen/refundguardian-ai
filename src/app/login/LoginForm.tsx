@@ -49,24 +49,24 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-md space-y-8">
       <div className="text-center">
-        <Link href="/" translate="no" className="text-2xl font-bold text-white hover:text-[var(--accent)]">
+        <Link href="/" translate="no" className="text-3xl font-bold text-white hover:text-[var(--accent)] sm:text-2xl">
           Refyndra AI
         </Link>
-        <h1 className="mt-6 text-2xl font-bold text-white">Sign in</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
+        <h1 className="mt-6 text-3xl font-bold text-white sm:text-2xl">Sign in</h1>
+        <p className="mt-2 text-base text-[var(--muted)] sm:text-sm">
           Enter your email and password to continue.
         </p>
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8">
         {error && (
-          <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-base text-red-300 sm:text-sm sm:text-red-400">
             {error}
           </div>
         )}
         <form onSubmit={handleSignIn} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-xs font-medium text-[var(--muted)] mb-1">
+            <label htmlFor="email" className="mb-1 block text-base font-semibold text-zinc-200 sm:text-xs sm:font-medium sm:text-[var(--muted)]">
               Email
             </label>
             <input
@@ -75,13 +75,13 @@ export function LoginForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-white placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3.5 text-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:min-h-0 sm:py-3 sm:text-sm sm:placeholder:text-[var(--muted)]"
               placeholder="you@example.com"
               disabled={loading}
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-xs font-medium text-[var(--muted)] mb-1">
+            <label htmlFor="password" className="mb-1 block text-base font-semibold text-zinc-200 sm:text-xs sm:font-medium sm:text-[var(--muted)]">
               Password
             </label>
             <input
@@ -90,7 +90,7 @@ export function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-white placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3.5 text-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:min-h-0 sm:py-3 sm:text-sm sm:placeholder:text-[var(--muted)]"
               placeholder="••••••••"
               disabled={loading}
             />
@@ -98,20 +98,20 @@ export function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--accent)] px-4 py-3 text-sm font-medium text-[var(--background)] hover:bg-[var(--accent-muted)] transition-colors disabled:opacity-60"
+            className="flex min-h-[52px] w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--accent)] px-4 py-3.5 text-base font-bold text-[var(--background)] transition-colors hover:bg-[var(--accent-muted)] disabled:opacity-60 sm:min-h-0 sm:py-3 sm:text-sm sm:font-medium"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
 
-      <p className="text-center text-sm text-[var(--muted)]">
+      <p className="text-center text-base text-[var(--muted)] sm:text-sm">
         Don&apos;t have an account?{' '}
         <Link href="/signup" className="font-medium text-[var(--accent)] hover:underline">
           Sign up
         </Link>
       </p>
-      <p className="text-center text-sm text-[var(--muted)]">
+      <p className="text-center text-base text-[var(--muted)] sm:text-sm">
         <Link href="/" className="hover:text-[var(--accent)]">
           ← Back to home
         </Link>

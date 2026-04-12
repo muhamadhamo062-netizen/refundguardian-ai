@@ -1,24 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
+import { getPaddleServer } from '@/lib/billing/paddleServer';
+
 export const dynamic = 'force-dynamic';
 
-type PaddlePortalApiResponse = {
-  data?: {
-    urls?: {
-      general?: Record<string, string | undefined>;
-    };
-  };
-};
-
-function firstHttpUrl(obj: Record<string, string | undefined> | undefined): string | null {
-  if (!obj) return null;
-  for (const v of Object.values(obj)) {
-    if (typeof v === 'string' && v.startsWith('http')) return v;
-  }
-  return null;
-}
-
-/** Paddle customer portal (authenticated session link). Requires PADDLE_API_KEY. */
+/** Paddle customer portal (authenticated session link). Requires `PADDLE_API_KEY`. */
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -51,43 +37,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.PADDLE_API_KEY?.trim();
-    if (!apiKey) {
+    const paddle = getPaddleServer();
+    if (!paddle) {
       return NextResponse.json({ ok: false, error: 'Paddle API key not configured' }, { status: 503 });
     }
 
-    const body: { subscription_ids?: string[] } = {};
-    if (subscriptionId) {
-      body.subscription_ids = [subscriptionId];
-    }
-
-    const res = await fetch(`https://api.paddle.com/customers/${encodeURIComponent(customerId)}/portal-sessions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const json = (await res.json().catch(() => ({}))) as PaddlePortalApiResponse;
-    if (!res.ok) {
-      console.error('[api/billing/portal] Paddle API', res.status, json);
-      return NextResponse.json(
-        { ok: false, error: 'Could not open billing portal' },
-        { status: res.status >= 400 ? res.status : 502 }
-      );
-    }
-
-    const portalUrl =
-      firstHttpUrl(json?.data?.urls?.general) ??
-      // fallback: some API versions nest differently
-      (typeof (json as { data?: { urls?: { general?: string } } }).data?.urls?.general === 'string'
-        ? ((json as { data?: { urls?: { general?: string } } }).data?.urls?.general as string)
-        : null);
-
-    if (!portalUrl) {
-      console.error('[api/billing/portal] unexpected Paddle response', json);
+    const subscriptionIds = subscriptionId ? [subscriptionId] : [];
+    const session = await paddle.customerPortalSessions.create(customerId, subscriptionIds);
+    const portalUrl = session.urls.general.overview;
+    if (!portalUrl || !portalUrl.startsWith('http')) {
+      console.error('[api/billing/portal] unexpected Paddle session URLs', session);
       return NextResponse.json({ ok: false, error: 'Billing portal response incomplete' }, { status: 502 });
     }
 

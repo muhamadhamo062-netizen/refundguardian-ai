@@ -2,10 +2,10 @@ export function VideoDemo() {
   return (
     <section className="border-t border-[var(--border)] bg-[var(--background)] px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-2xl font-semibold text-white sm:text-3xl text-center">
+        <h2 className="text-3xl font-semibold text-white text-center sm:text-3xl">
           Watch automated Amazon refunds &amp; late delivery detection
         </h2>
-        <p className="mt-3 text-sm text-[var(--muted)] text-center max-w-2xl mx-auto">
+        <p className="mt-3 text-base text-[var(--muted)] text-center max-w-2xl mx-auto sm:text-sm">
           Refyndra AI scanning order timelines for refund opportunities — set it once, then let it run in the
           background.
         </p>

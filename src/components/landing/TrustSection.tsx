@@ -108,15 +108,15 @@ export function TrustSection() {
       <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row">
         {/* Social proof */}
         <div className="flex-1">
-          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-3xl">
             Real Refunds That U.S. Shoppers Actually Keep
           </h2>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--muted)] sm:text-xs">
             Trusted results
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-3 sm:items-end">
             <div>
-              <p className="text-sm font-medium text-[var(--muted)]">
+              <p className="text-base font-medium text-[var(--muted)] sm:text-sm">
                 Total recovered
               </p>
               <p className="mt-1 inline-block rounded-xl bg-emerald-500/[0.07] px-2 py-1 text-3xl font-bold tabular-nums tracking-tight text-white shadow-[0_0_44px_-10px_rgba(52,211,153,0.55)] ring-1 ring-emerald-400/25 [text-shadow:0_0_32px_rgba(16,185,129,0.35)] sm:text-4xl">
@@ -124,7 +124,7 @@ export function TrustSection() {
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--muted)]">
+              <p className="text-base font-medium text-[var(--muted)] sm:text-sm">
                 Successful compensations
               </p>
               <p className="mt-1 text-2xl font-semibold text-white">
@@ -132,7 +132,7 @@ export function TrustSection() {
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--muted)]">
+              <p className="text-base font-medium text-[var(--muted)] sm:text-sm">
                 Active users
               </p>
               <p className="mt-1 text-2xl font-semibold text-white">
@@ -140,7 +140,7 @@ export function TrustSection() {
               </p>
             </div>
           </div>
-          <p className="mt-3 text-sm text-[var(--muted)] max-w-md">
+          <p className="mt-3 text-base text-[var(--muted)] max-w-md sm:text-sm">
             Refyndra AI runs in the background to catch delays you&apos;d
             usually miss — and turns them into real money back in your pocket.
           </p>
@@ -149,9 +149,9 @@ export function TrustSection() {
             {exampleRefunds.map(({ name, amount, provider, ago }) => (
               <div
                 key={name}
-                className="rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3.5 text-xs shadow-sm transition-transform duration-150 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40"
+                className="rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3.5 text-base shadow-sm transition-transform duration-150 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40 sm:text-xs"
               >
-                <p className="leading-relaxed text-[13px] text-[var(--foreground)]/90 sm:text-sm">
+                <p className="leading-relaxed text-base font-medium text-[var(--foreground)]/90 sm:text-sm sm:font-normal">
                   <span className="font-semibold text-white">{name}</span>
                   <span className="text-[var(--muted)]"> recovered </span>
                   <span className="font-semibold text-[var(--accent)]">{amount}</span>
@@ -170,14 +170,14 @@ export function TrustSection() {
             <h3 className="text-base font-semibold text-white">
               Your Privacy Comes First
             </h3>
-            <p className="mt-2 text-sm text-[var(--muted)]">
+            <p className="mt-2 text-base text-[var(--muted)] sm:text-sm">
               We only read order and delivery signals to detect issues so the engine can calculate
               compensation automatically.
             </p>
-            <p className="mt-3 text-sm font-medium text-[var(--muted)]">
+            <p className="mt-3 text-base font-medium text-[var(--muted)] sm:text-sm">
               We NEVER access:
             </p>
-            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
+            <ul className="mt-3 space-y-2 text-base text-[var(--muted)] sm:text-sm">
               <li className="flex items-center gap-2">
                 <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
                   <svg
@@ -286,13 +286,13 @@ export function TrustSection() {
                     {step.icon}
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] sm:text-xs">
                       Step {index + 1}
                     </p>
-                    <p className="mt-0.5 text-sm font-medium text-white">
+                    <p className="mt-0.5 text-base font-semibold text-white sm:text-sm sm:font-medium">
                       {step.title}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
+                    <p className="mt-1 text-base text-[var(--muted)] sm:text-xs">
                       {step.description}
                     </p>
                   </div>

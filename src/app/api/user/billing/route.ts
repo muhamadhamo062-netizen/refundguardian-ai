@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const { data: row, error } = await supabase
       .from('users')
       .select(
-        'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, paddle_customer_id, paddle_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
+        'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, paddle_customer_id, paddle_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
       )
       .eq('id', user.id)
       .maybeSingle();
@@ -41,8 +41,6 @@ export async function GET(request: Request) {
           subscription_status: 'none',
           trial_ends_at: null,
           autonomous_mode_enabled: false,
-          stripe_customer_id: null,
-          stripe_subscription_id: null,
           paddle_customer_id: null,
           paddle_subscription_id: null,
           free_trial_initial_scan_completed_at: null,

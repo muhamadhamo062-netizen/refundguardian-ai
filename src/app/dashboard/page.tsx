@@ -56,7 +56,7 @@ export default async function DashboardPage() {
     ? await supabase
         .from('users')
         .select(
-          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, paddle_customer_id, paddle_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
+          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, paddle_customer_id, paddle_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
         )
         .eq('id', user.id)
         .maybeSingle()
@@ -344,8 +344,8 @@ export default async function DashboardPage() {
       </section>
 
       <header className="mt-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Dashboard</h1>
-        <p className="text-sm text-[var(--muted)]">A clear view of your refunds and savings — only your account</p>
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-3xl">Dashboard</h1>
+        <p className="text-base text-[var(--muted)] sm:text-sm">A clear view of your refunds and savings — only your account</p>
       </header>
 
       {user ? (
@@ -389,15 +389,15 @@ export default async function DashboardPage() {
 
       <section className="mt-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)]/60 px-4 py-4 sm:grid-cols-2">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">In progress</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 sm:text-[10px] sm:text-zinc-500">In progress</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-amber-200">{pendingClaimsCount}</p>
         </div>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Updates tracked</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 sm:text-[10px] sm:text-zinc-500">Updates tracked</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-violet-200">{submittedClaimsCount}</p>
         </div>
         {pendingClaimsCount === 0 && submittedClaimsCount === 0 ? (
-          <p className="text-[11px] leading-snug text-zinc-500 sm:col-span-2">
+          <p className="text-base leading-snug text-zinc-400 sm:col-span-2 sm:text-[11px] sm:text-zinc-500">
             Waiting for your first scan...
           </p>
         ) : null}
@@ -408,7 +408,7 @@ export default async function DashboardPage() {
         <div className="order-1">
           <Deferred
             fallback={
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-base text-[var(--muted)] sm:text-sm">
                 Loading orders…
               </div>
             }

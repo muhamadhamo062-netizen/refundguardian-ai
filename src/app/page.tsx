@@ -1,3 +1,4 @@
+// Mobile update v2 - 2026-04-11T18:30:00Z
 import type { Metadata } from 'next';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';

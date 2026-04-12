@@ -47,10 +47,10 @@ export function Testimonials() {
   return (
     <section className="border-t border-[var(--border)] bg-[var(--background)] px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
+        <h2 className="text-center text-3xl font-semibold text-white sm:text-3xl">
           Real Amazon refunds &amp; late delivery wins from Refyndra users
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-[var(--muted)]">
+        <p className="mx-auto mt-3 max-w-2xl text-center text-base text-[var(--muted)] sm:text-sm">
           Real stories from people using Refyndra AI to turn overlooked issues into money back.
         </p>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
@@ -59,32 +59,32 @@ export function Testimonials() {
               key={t.name}
               className="group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm transition-all duration-300 md:hover:-translate-y-0.5 md:hover:border-emerald-500/25 md:hover:shadow-[0_12px_48px_-16px_rgba(16,185,129,0.28)] md:hover:shadow-emerald-500/10"
             >
-              <div className="mb-4 inline-flex w-fit max-w-full rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              <div className="mb-4 inline-flex w-fit max-w-full rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-300 sm:text-[10px] sm:py-1 sm:text-zinc-400">
                 {t.tag}
               </div>
 
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-xs font-medium text-emerald-400/95">Recovered {t.amount}</span>
-                <span className="text-xs text-[var(--muted)]">from</span>
-                <span className="text-xs font-semibold text-white">{t.platformShort}</span>
+                <span className="text-base font-semibold text-emerald-400/95 sm:text-xs sm:font-medium">Recovered {t.amount}</span>
+                <span className="text-base text-[var(--muted)] sm:text-xs">from</span>
+                <span className="text-base font-semibold text-white sm:text-xs">{t.platformShort}</span>
               </div>
 
               <blockquote className="mt-4 flex-1">
-                <p className="text-sm leading-relaxed text-[var(--foreground)]/85">&ldquo;{t.quote}&rdquo;</p>
+                <p className="text-base leading-relaxed text-[var(--foreground)]/90 sm:text-sm sm:text-[var(--foreground)]/85">&ldquo;{t.quote}&rdquo;</p>
               </blockquote>
 
               <figcaption className="mt-6 flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <span
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12 text-sm font-semibold text-[var(--accent)] ring-1 ring-[var(--accent)]/25"
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12 text-base font-semibold text-[var(--accent)] ring-1 ring-[var(--accent)]/25 sm:h-10 sm:w-10 sm:text-sm"
                     aria-hidden
                   >
                     {t.initial}
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-white">{t.name}</span>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/95">
+                      <span className="text-base font-semibold text-white sm:text-sm">{t.name}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-200/95 sm:text-[10px]">
                         <svg
                           className="h-3 w-3 text-emerald-400"
                           viewBox="0 0 24 24"

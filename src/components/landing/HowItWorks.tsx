@@ -74,8 +74,8 @@ export function HowItWorks() {
       className="border-t border-[var(--border)] bg-[var(--card)] px-4 py-20 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
-        <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">How it works</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-[var(--muted)] sm:text-base">
+        <h2 className="text-center text-4xl font-bold text-white sm:text-4xl">How it works</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-base text-[var(--muted)] sm:text-base">
           Set it and forget it — Refyndra keeps watching so you don’t have to.
         </p>
         <p className="mx-auto mt-6 max-w-3xl rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-5 py-4 text-center text-base font-semibold leading-snug text-emerald-100 sm:text-lg">
@@ -90,11 +90,11 @@ export function HowItWorks() {
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--card)] ring-1 ring-[var(--border)]">
                 {icon}
               </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+              <p className="mt-4 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--muted)] sm:text-xs">
                 Step {step}
               </p>
-              <h3 className="mt-1 text-base font-semibold text-white">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{description}</p>
+              <h3 className="mt-1 text-lg font-semibold text-white sm:text-base">{title}</h3>
+              <p className="mt-2 text-base leading-relaxed text-[var(--muted)] sm:text-sm">{description}</p>
             </div>
           ))}
         </div>

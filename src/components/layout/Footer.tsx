@@ -14,10 +14,10 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="text-center sm:text-left">
-            <p className="text-sm text-[var(--muted)]" translate="no" suppressHydrationWarning>
+            <p className="text-base text-[var(--muted)] sm:text-sm" translate="no" suppressHydrationWarning>
               © 2026 Refyndra AI. All rights reserved.
             </p>
-            <p className="mt-2 text-sm">
+            <p className="mt-2 text-base sm:text-sm">
               <span className="text-[var(--muted)]">Support: </span>
               <a
                 href={SUPPORT_MAILTO}
@@ -32,7 +32,7 @@ export function Footer() {
               <li key={href}>
                 <Link
                   href={href}
-                  className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                  className="text-base text-[var(--muted)] hover:text-[var(--accent)] transition-colors sm:text-sm"
                 >
                   {label}
                 </Link>

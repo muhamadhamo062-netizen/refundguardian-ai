@@ -1,5 +1,6 @@
 'use client';
 
+// Mobile update v2 - 2026-04-11T18:30:00Z — audit: text-base + sm:text-sm for body UI
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -602,32 +603,32 @@ export function AmazonOrdersDashboard({
     <section className="min-w-0 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
       <div className="flex flex-col gap-4 border-b border-[var(--border)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-lg font-semibold text-white">Your orders</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
+          <h2 className="text-2xl font-bold !leading-tight text-white sm:text-lg sm:font-semibold">Your orders</h2>
+          <p className="mt-1 !text-base !font-medium leading-relaxed text-zinc-300 sm:text-sm sm:!font-normal sm:text-[var(--muted)]">
             Pulled from your account and the Refyndra extension. We highlight possible savings — you decide what to do
             next.
           </p>
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-base text-zinc-300 sm:text-sm sm:text-zinc-500">
             Estimates are informational. Nothing is sent to stores until you take action.
           </p>
           {extensionHint && (
-            <p className="mt-2 text-xs text-amber-400/90">{extensionHint}</p>
+            <p className="mt-2 text-base text-amber-300 sm:text-sm sm:text-amber-400/90">{extensionHint}</p>
           )}
           {aiPlanHint && (
-            <p className="mt-2 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs text-violet-100/95">
+            <p className="mt-2 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-base text-violet-50 sm:text-sm sm:text-violet-100/95">
               {aiPlanHint}
             </p>
           )}
         </div>
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex w-full max-w-md flex-wrap gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-3 py-2">
-            <span className="w-full text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+            <span className="w-full text-base font-semibold uppercase tracking-wide text-zinc-300 sm:text-sm sm:text-zinc-500">
               Boost savings signals (optional)
             </span>
             {(['amazon', 'uber_eats', 'uber_rides', 'doordash'] as const).map((p) => (
               <label
                 key={p}
-                className="flex cursor-pointer items-center gap-2 text-[10px] text-zinc-400"
+                className="flex cursor-pointer items-center gap-2 text-base font-medium text-zinc-200 sm:text-sm sm:font-normal sm:text-zinc-400"
               >
                 <input
                   type="checkbox"
@@ -647,7 +648,7 @@ export function AmazonOrdersDashboard({
             ))}
           </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex min-h-[40px] cursor-pointer items-center gap-2 text-xs text-[var(--muted)] touch-manipulation">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-base font-medium text-zinc-200 touch-manipulation sm:min-h-[40px] sm:text-sm sm:font-normal sm:text-[var(--muted)]">
             <input
               type="checkbox"
               className="rounded border-[var(--border)] bg-[var(--background)]"
@@ -662,7 +663,7 @@ export function AmazonOrdersDashboard({
               setLoading(true);
               void load();
             }}
-            className="min-h-[44px] touch-manipulation rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm font-medium text-white transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="min-h-[48px] touch-manipulation rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base font-semibold text-white transition hover:border-[var(--accent)] hover:text-[var(--accent)] sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-medium"
           >
             Refresh
           </button>
@@ -672,23 +673,23 @@ export function AmazonOrdersDashboard({
 
       {aiLocked && !isPro && (
         <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-4 sm:px-6">
-          <p className="text-sm font-semibold text-amber-100">
+          <p className="text-base font-semibold text-amber-50 sm:text-sm sm:text-amber-100">
             Unlock full Refyndra Pro savings tools
           </p>
           {freeTrialPotentialUsd > 0 && (
-            <p className="mt-2 text-xs text-amber-50/95">
+            <p className="mt-2 text-base text-amber-50 sm:text-sm sm:text-amber-50/95">
               From your free scan, advisory AI estimated about{' '}
               <span className="font-semibold tabular-nums">${freeTrialPotentialUsd.toFixed(2)}</span> total
               potential — not guaranteed.
             </p>
           )}
-          <p className="mt-1 text-xs text-amber-200/90">
+          <p className="mt-1 text-base text-amber-100 sm:text-sm sm:text-amber-200/90">
             Deeper history and unlimited smart batches are included with Pro. You choose when to subscribe — no surprise
             charges.
           </p>
           <Link
             href="/dashboard#plan"
-            className="mt-3 inline-flex min-h-[44px] touch-manipulation items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2.5 text-xs font-semibold text-[#052e16] hover:opacity-95"
+            className="mt-3 inline-flex min-h-[48px] touch-manipulation items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-3 text-base font-bold text-[#052e16] hover:opacity-95 sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-semibold"
           >
             View plans & upgrade
           </Link>
@@ -697,7 +698,7 @@ export function AmazonOrdersDashboard({
 
       {!aiLocked && !isPro && freeTrialPotentialUsd > 0 && (
         <div className="border-b border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3 sm:px-6">
-          <p className="text-xs font-medium text-emerald-100/95">
+          <p className="text-base font-semibold text-emerald-50 sm:text-sm sm:font-medium sm:text-emerald-100/95">
             Possible savings from this free scan (estimate):{' '}
             <span className="tabular-nums font-semibold">${freeTrialPotentialUsd.toFixed(2)}</span>
           </p>
@@ -710,7 +711,7 @@ export function AmazonOrdersDashboard({
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`touch-manipulation rounded-full px-4 py-2 text-xs font-medium capitalize transition min-h-[40px] ${
+            className={`touch-manipulation min-h-[44px] rounded-full px-4 py-2.5 text-base font-semibold capitalize transition sm:min-h-[40px] sm:py-2 sm:text-sm sm:font-medium ${
               filter === f
                 ? 'bg-[var(--accent)] text-[#052e16]'
                 : 'bg-[var(--background)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:text-white'
@@ -726,13 +727,13 @@ export function AmazonOrdersDashboard({
           <button
             type="button"
             onClick={() => setShowActivity((s) => !s)}
-            className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium text-zinc-300 hover:bg-white/[0.02]"
+            className="flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left text-base font-semibold text-zinc-200 hover:bg-white/[0.02] sm:min-h-0 sm:py-2.5 sm:text-sm sm:font-medium sm:text-zinc-300"
           >
             <span>Activity</span>
             <span className="text-zinc-500">{showActivity ? '▼' : '▶'}</span>
           </button>
           {showActivity && (
-            <ul className="max-h-44 space-y-1.5 overflow-y-auto border-t border-[var(--border)] px-4 py-3 text-[10px] leading-snug text-zinc-500">
+            <ul className="max-h-44 space-y-1.5 overflow-y-auto border-t border-[var(--border)] px-4 py-3 text-base font-medium leading-snug text-zinc-300 sm:text-sm sm:font-normal sm:text-zinc-500">
               {activityLog.length === 0 ? (
                 <li>
                   No activity yet. Turn on savings signals above to see updates here.
@@ -753,31 +754,31 @@ export function AmazonOrdersDashboard({
         </div>
 
         {warning && (
-          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-base text-amber-50 sm:text-sm sm:text-amber-100">
             {warning}
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-base text-red-100 sm:text-sm sm:text-red-200">
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="py-12 text-center text-sm text-[var(--muted)]">Loading orders…</div>
+          <div className="py-12 text-center text-base text-[var(--muted)] sm:text-sm">Loading orders…</div>
         ) : empty ? (
           <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--background)]/50 py-16 text-center">
             <p className="text-base font-medium text-[var(--muted)]">
               No compensation signals detected yet
             </p>
-            <p className="mt-2 text-sm text-[var(--muted)]/80">
+            <p className="mt-2 text-base text-[var(--muted)]/90 sm:text-sm sm:text-[var(--muted)]/80">
               Sync orders with the extension (Amazon live; Uber paths as your account connects).
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-zinc-400">
+            <p className="text-base text-zinc-300 sm:text-sm sm:text-zinc-400">
               <span className="font-semibold tabular-nums text-zinc-200">{filtered.length}</span> order
               {filtered.length === 1 ? '' : 's'} · savings signals refresh when you reload or change filters.
             </p>
@@ -801,13 +802,13 @@ export function AmazonOrdersDashboard({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <PlatformOrderIcon platform={platform} />
-                      <h3 className="text-sm font-semibold text-zinc-200">{label}</h3>
+                      <h3 className="text-lg font-semibold text-zinc-100 sm:text-sm sm:text-zinc-200">{label}</h3>
                     </div>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-base font-medium text-zinc-300 sm:text-sm sm:font-normal sm:text-zinc-500">
                       {list.length} order{list.length === 1 ? '' : 's'} · {withAi} with savings insight
                     </span>
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  <p className="mt-2 text-base leading-relaxed text-zinc-300 sm:text-sm sm:text-zinc-500">
                     Filters apply to this list. Activity above shows optional boosts you turned on.
                   </p>
                 </div>

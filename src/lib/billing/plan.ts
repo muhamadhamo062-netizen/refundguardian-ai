@@ -10,8 +10,6 @@ export type UserBillingRow = {
   subscription_status: string | null;
   trial_ends_at: string | null;
   autonomous_mode_enabled?: boolean | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
   /** Paddle Billing (`ctm_*` / `sub_*`). */
   paddle_customer_id?: string | null;
   paddle_subscription_id?: string | null;

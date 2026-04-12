@@ -52,33 +52,33 @@ export default function ConsentPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[var(--background)]">
       <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8">
-        <h1 className="text-xl font-bold text-white">Permission required</h1>
-        <p className="mt-4 text-sm text-[var(--muted)]">
+        <h1 className="text-2xl font-bold text-white sm:text-xl">Permission required</h1>
+        <p className="mt-4 text-base text-[var(--muted)] sm:text-sm">
           To use the automated compensation assistant, you must accept the following:
         </p>
-        <blockquote className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 text-sm text-[var(--foreground)] italic">
+        <blockquote className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 text-base text-[var(--foreground)] italic sm:text-sm">
           {CONSENT_TEXT}
         </blockquote>
         {error && (
-          <p className="mt-4 text-sm text-red-400">{error}</p>
+          <p className="mt-4 text-base text-red-300 sm:text-sm sm:text-red-400">{error}</p>
         )}
         <div className="mt-8 flex gap-4">
           <button
             type="button"
             onClick={handleAccept}
             disabled={loading}
-            className="flex-1 rounded-lg bg-[var(--accent)] py-3 text-sm font-medium text-[var(--background)] hover:bg-[var(--accent-muted)] disabled:opacity-60"
+            className="flex-1 min-h-[52px] rounded-lg bg-[var(--accent)] py-3.5 text-base font-bold text-[var(--background)] hover:bg-[var(--accent-muted)] disabled:opacity-60 sm:min-h-0 sm:py-3 sm:text-sm sm:font-medium"
           >
             {loading ? 'Saving…' : 'I accept'}
           </button>
           <Link
             href="/dashboard"
-            className="flex-1 rounded-lg border border-[var(--border)] py-3 text-center text-sm font-medium text-[var(--muted)] hover:bg-[var(--card-hover)]"
+            className="flex-1 min-h-[52px] rounded-lg border border-[var(--border)] py-3.5 text-center text-base font-semibold text-[var(--muted)] hover:bg-[var(--card-hover)] sm:min-h-0 sm:py-3 sm:text-sm sm:font-medium"
           >
             Skip for now
           </Link>
         </div>
-        <p className="mt-4 text-xs text-[var(--muted)]">
+        <p className="mt-4 text-base text-[var(--muted)] sm:text-xs">
           <Link href="/" className="hover:text-[var(--accent)]">← Back to home</Link>
         </p>
       </div>

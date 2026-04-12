@@ -421,14 +421,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   const headerRight = useMemo(() => {
     if (loadingUser) {
       return (
-        <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
+        <span className="inline-flex items-center gap-2 text-base text-zinc-200 sm:text-xs sm:text-zinc-400">
           <Spinner />
           Loading…
         </span>
       );
     }
     return (
-      <span className="text-xs text-zinc-400">
+      <span className="text-base text-zinc-200 sm:text-xs sm:text-zinc-400">
         {userId ? 'Saved to your account (this browser)' : 'Log in to save per account'}
       </span>
     );
@@ -440,13 +440,13 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     >
       <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80 sm:text-[10px]">
             Smart savings
           </p>
-          <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
+          <h2 className="mt-1 text-2xl font-semibold text-white sm:text-xl">
             Standard monitoring &amp; AI Auto-Pilot
           </h2>
-          <p className="mt-1 text-xs text-[var(--muted)]">
+          <p className="mt-1 text-base text-[var(--muted)] sm:text-xs">
             {aiDraftingEnabled === false ? (
               <>
                 <strong className="font-medium text-zinc-300">Standard monitoring</strong> watches delays for you. Add
@@ -466,7 +466,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       </div>
 
       {aiDraftingEnabled === false ? (
-        <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-3 text-[11px] leading-relaxed text-amber-100 sm:px-6">
+        <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-3 text-base leading-relaxed text-amber-50 sm:px-6 sm:text-[11px] sm:text-amber-100">
           <strong className="font-semibold text-amber-50">Templates only for now.</strong> Your team can enable
           AI-written messages for all supported stores. Sending still happens from <strong className="font-medium">your</strong>{' '}
           Gmail when connected.
@@ -474,8 +474,8 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       ) : null}
 
       <div className="border-b border-[var(--border)] bg-white/[0.02] px-4 py-3 sm:px-6">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/90">Smart flow</p>
-        <ol className="mt-2 grid gap-2 text-[11px] leading-snug text-zinc-300 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300/90 sm:text-[10px]">Smart flow</p>
+        <ol className="mt-2 grid gap-2 text-base font-medium leading-snug text-zinc-200 sm:grid-cols-2 sm:text-[11px] sm:font-normal sm:text-zinc-300 lg:grid-cols-4">
           <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
             <span className="shrink-0 font-semibold text-emerald-400">1</span>
             <span>
@@ -488,11 +488,11 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 Open setup
               </Link>
               {gmailConnected === true ? (
-                <span className="ml-1 inline-flex items-center rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                <span className="ml-1 inline-flex items-center rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-200 sm:text-[10px] sm:font-medium sm:text-emerald-300">
                   Connected
                 </span>
               ) : gmailConnected === false ? (
-                <span className="ml-1 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                <span className="ml-1 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-xs font-semibold text-amber-100 sm:text-[10px] sm:font-medium sm:text-amber-200">
                   Not connected
                 </span>
               ) : (
@@ -530,7 +530,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             </span>
           </li>
         </ol>
-        <p className="mt-3 text-[10px] leading-relaxed text-zinc-500">
+        <p className="mt-3 text-sm leading-relaxed text-zinc-300 sm:text-[10px] sm:text-zinc-500">
           {aiDraftingEnabled === false ? (
             <>
               Only <strong className="text-zinc-400">you</strong> send the final message for now. Refyndra never collects
@@ -557,15 +557,15 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-white">{row.label}</p>
-                  <p className="mt-1 text-[11px] text-[var(--muted)]">
+                  <p className="text-lg font-semibold text-white sm:text-xs">{row.label}</p>
+                  <p className="mt-1 text-base text-[var(--muted)] sm:text-[11px]">
                     Standard monitoring is on. Pick additional issues to unlock actions.
                   </p>
                 </div>
                 <button
                   type="button"
                   disabled
-                  className="shrink-0 inline-flex min-h-[34px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 opacity-85"
+                  className="shrink-0 inline-flex min-h-[40px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-sm font-bold text-emerald-50 opacity-90 sm:min-h-[34px] sm:text-[11px] sm:font-semibold sm:text-emerald-100 sm:opacity-85"
                   title="Standard monitoring is active from your connected activity."
                 >
                   Standard monitoring
@@ -577,38 +577,40 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                   <span className="text-emerald-300" aria-hidden>
                     ✓
                   </span>
-                  <span className="text-[12px] font-semibold text-emerald-100">
+                  <span className="text-base font-bold text-emerald-50 sm:text-[12px] sm:font-semibold sm:text-emerald-100">
                     {row.auto.title} {row.auto.badge}
                   </span>
                 </div>
-                <p className="mt-1 text-[11px] text-emerald-200/70">
+                <p className="mt-1 text-base font-medium text-emerald-100 sm:text-[11px] sm:font-normal sm:text-emerald-200/70">
                   Detected from extension + timestamps.
                 </p>
               </div>
 
               <div className="mt-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300 sm:text-[10px] sm:text-[var(--muted)]">
                   Additional issues (optional)
                 </p>
                 <div className="mt-2 grid gap-2">
                   {row.manual.map((m) => (
                     <label
                       key={m.issueKey}
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 hover:bg-white/[0.02]"
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 hover:bg-white/[0.02] sm:py-2"
                     >
-                      <span className="text-[12px] text-zinc-200">{m.title}</span>
+                      <span className="text-base font-medium text-zinc-100 sm:text-[12px] sm:font-normal sm:text-zinc-200">
+                        {m.title}
+                      </span>
                       <input
                         type="checkbox"
                         checked={Boolean(sel[row.key]?.[m.issueKey])}
                         onChange={(e) => toggle(row.key, m.issueKey, e.target.checked)}
-                        className="h-4 w-4 accent-emerald-400"
+                        className="h-5 w-5 accent-emerald-400 sm:h-4 sm:w-4"
                         aria-label={`${row.label}: ${m.title}`}
                       />
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-[11px] text-[var(--muted)]">
-                  Selected: <span className="font-medium text-zinc-200">{manualCount}</span>
+                <p className="mt-2 text-base text-[var(--muted)] sm:text-[11px]">
+                  Selected: <span className="font-semibold text-zinc-100 sm:font-medium sm:text-zinc-200">{manualCount}</span>
                 </p>
               </div>
 
@@ -618,14 +620,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                     type="button"
                     onClick={() => void onApprove(row.key)}
                     disabled={saving}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-[var(--accent)] px-3 text-[12px] font-semibold text-[var(--background)] disabled:opacity-60"
+                    className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[var(--accent)] px-3 text-base font-bold text-[var(--background)] disabled:opacity-60 sm:min-h-[40px] sm:text-[12px] sm:font-semibold"
                   >
                     {saving ? 'Saving…' : 'Approve'}
                   </button>
                   <button
                     type="button"
                     onClick={() => openDraft(row.key)}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-[12px] font-semibold text-zinc-200 hover:bg-white/[0.02]"
+                    className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-base font-bold text-zinc-100 hover:bg-white/[0.02] sm:min-h-[40px] sm:text-[12px] sm:font-semibold sm:text-zinc-200"
                   >
                     {draftButtonLabel}
                   </button>
@@ -638,7 +640,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
 
       {/* Desktop/tablet: wide table */}
       <div className="hidden md:block overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-        <table className="w-full min-w-[860px] border-collapse text-left text-xs">
+        <table className="w-full min-w-[860px] border-collapse text-left text-sm sm:text-xs">
           <thead>
             <tr className="border-b border-[var(--border)] bg-white/[0.02]">
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
@@ -661,7 +663,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
               const hasManual = manualCount > 0;
               return (
                 <tr key={row.key} className="border-b border-[var(--border)]/60 last:border-0">
-                  <td className="px-4 py-4 font-semibold text-white sm:px-6">{row.label}</td>
+                  <td className="px-4 py-4 text-base font-bold text-white sm:px-6 sm:text-sm sm:font-semibold">{row.label}</td>
 
                   <td className="px-4 py-4 sm:px-6">
                     <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
@@ -686,7 +688,9 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                           key={m.issueKey}
                           className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 hover:bg-white/[0.02]"
                         >
-                          <span className="text-[12px] text-zinc-200">{m.title}</span>
+                          <span className="text-sm font-medium text-zinc-100 sm:text-[12px] sm:font-normal sm:text-zinc-200">
+                            {m.title}
+                          </span>
                           <input
                             type="checkbox"
                             checked={Boolean(sel[row.key]?.[m.issueKey])}
@@ -742,7 +746,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       </div>
 
       {toast ? (
-        <div className="border-t border-[var(--border)] px-4 py-3 text-xs text-emerald-200 sm:px-6" role="status">
+        <div className="border-t border-[var(--border)] px-4 py-3 text-base font-medium text-emerald-100 sm:px-6 sm:text-xs sm:font-normal sm:text-emerald-200" role="status">
           {toast}
         </div>
       ) : null}
@@ -756,15 +760,15 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           <div className="flex max-h-[min(92dvh,100%)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl shadow-black/40 sm:rounded-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3 sm:px-6">
               <div className="min-w-0 pr-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <p className="text-sm font-semibold uppercase tracking-wider text-zinc-300 sm:text-xs sm:text-zinc-400">
                   {aiDraftingEnabled === false ? 'Guided template' : 'Smart draft'}
                 </p>
-                <p className="text-sm font-medium text-white">
+                <p className="text-lg font-semibold text-white sm:text-sm sm:font-medium">
                   {aiDraftingEnabled === false
                     ? 'You edit the message'
                     : 'Polished message — send or copy'}
                 </p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">
+                <p className="mt-0.5 text-base text-zinc-300 sm:text-[11px] sm:text-zinc-500">
                   {aiDraftingEnabled === false ? (
                     <>
                       Smarter drafting can be enabled for your Refyndra account. Stores still decide every outcome.
@@ -780,14 +784,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
               <button
                 type="button"
                 onClick={closeDraft}
-                className="min-h-[44px] shrink-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-zinc-200 hover:bg-white/[0.02] sm:min-h-0 sm:py-1.5"
+                className="min-h-[48px] shrink-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-base font-semibold text-zinc-100 hover:bg-white/[0.02] sm:min-h-0 sm:py-1.5 sm:text-xs sm:font-normal sm:text-zinc-200"
               >
                 Close
               </button>
             </div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
               {gmailConnected === false ? (
-                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-base text-amber-50 sm:text-xs sm:text-amber-100">
                   Connect Gmail (App Password) in{' '}
                   <Link href={gmailConnectHref} className="font-medium text-amber-50 underline underline-offset-2">
                     dashboard setup
@@ -796,7 +800,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 </p>
               ) : null}
               <div>
-                <label htmlFor="comp-draft-to" className="mb-1 block text-xs font-medium text-zinc-400">
+                <label htmlFor="comp-draft-to" className="mb-1 block text-base font-semibold text-zinc-200 sm:text-xs sm:font-medium sm:text-zinc-400">
                   To (merchant support)
                 </label>
                 <input

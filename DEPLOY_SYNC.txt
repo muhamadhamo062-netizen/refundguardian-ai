@@ -1,0 +1,4 @@
+DEPLOY_ID=638194205
+SYNC=2026-04-11T12:00:00Z
+REPO_ROOT=d:\refundguardian-ai
+NOTE=GitHub Desktop must open this repository folder, not Desktop\AI.

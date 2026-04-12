@@ -64,7 +64,7 @@ export function Navbar() {
         <Link
           href="/"
           translate="no"
-          className="text-lg font-semibold tracking-tight text-white hover:text-[var(--accent)] transition-colors"
+          className="text-2xl font-bold !leading-tight tracking-tight text-white hover:text-[var(--accent)] transition-colors sm:text-lg sm:font-semibold"
         >
           Refyndra
         </Link>
@@ -136,7 +136,7 @@ export function Navbar() {
                   href={href}
                   prefetch={href === '/dashboard'}
                   onClick={() => setMobileOpen(false)}
-                  className="block rounded-lg px-4 py-3 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)]"
+                  className="block rounded-lg px-4 py-4 !text-lg !font-bold !leading-tight text-[var(--foreground)] hover:bg-[var(--card)] sm:py-3 sm:!text-base sm:font-semibold sm:!leading-normal"
                 >
                   {label}
                 </Link>
@@ -147,7 +147,7 @@ export function Navbar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)]"
+                  className="w-full rounded-lg px-4 py-4 text-left !text-lg !font-bold !leading-tight text-[var(--foreground)] hover:bg-[var(--card)] sm:py-3 sm:!text-base sm:font-semibold"
                 >
                   Logout
                 </button>
@@ -158,14 +158,14 @@ export function Navbar() {
                   <Link
                     href="/signup"
                     onClick={() => setMobileOpen(false)}
-                    className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--background)] ${LANDING_PRIMARY_CTA_GLOW}`}
+                    className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-3.5 !text-lg !font-bold !leading-tight text-[var(--background)] sm:min-h-[48px] sm:py-3 sm:!text-base sm:font-semibold ${LANDING_PRIMARY_CTA_GLOW}`}
                   >
                     Create account
                   </Link>
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--background)]/70 px-4 py-3 text-sm font-medium text-[var(--foreground)] backdrop-blur-sm transition-all duration-300 ease-out hover:scale-[1.02] hover:border-emerald-500/25 hover:bg-[var(--card)] active:scale-[0.98]"
+                    className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--background)]/70 px-4 py-3.5 !text-lg !font-bold !leading-tight text-[var(--foreground)] backdrop-blur-sm transition-all duration-300 ease-out hover:scale-[1.02] hover:border-emerald-500/25 hover:bg-[var(--card)] active:scale-[0.98] sm:min-h-[48px] sm:py-3 sm:!text-base sm:font-semibold"
                   >
                     Sign in
                   </Link>

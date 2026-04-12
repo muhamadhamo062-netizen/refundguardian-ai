@@ -22,7 +22,7 @@ export function DashboardNav() {
         <Link
           href="/dashboard"
           translate="no"
-          className="min-w-0 shrink truncate text-lg font-semibold tracking-tight text-white transition-colors hover:text-[var(--accent)]"
+          className="min-w-0 shrink truncate text-2xl font-bold !leading-tight tracking-tight text-white transition-colors hover:text-[var(--accent)] sm:text-lg sm:font-semibold"
         >
           Refyndra
         </Link>
@@ -77,7 +77,7 @@ export function DashboardNav() {
                 <Link
                   href={href}
                   onClick={() => setMobileOpen(false)}
-                  className="block rounded-lg px-4 py-3 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)]"
+                  className="block rounded-lg px-4 py-4 !text-lg !font-bold !leading-tight text-[var(--foreground)] hover:bg-[var(--card)] sm:py-3 sm:!text-base sm:font-semibold"
                 >
                   {label}
                 </Link>
@@ -87,7 +87,7 @@ export function DashboardNav() {
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)]"
+                  className="w-full rounded-lg px-4 py-4 text-left !text-lg !font-bold !leading-tight text-[var(--foreground)] hover:bg-[var(--card)] sm:py-3 sm:!text-base sm:font-semibold"
                 >
                   Sign out
                 </button>

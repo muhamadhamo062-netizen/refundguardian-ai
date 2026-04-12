@@ -58,22 +58,22 @@ export function FirstRecoveryBanner({ userId, totalCents, refundCount, isPro }: 
       <div className="absolute inset-y-0 right-0 w-32 bg-[radial-gradient(circle_at_100%_50%,rgba(52,211,153,0.12),transparent)] pointer-events-none" />
       <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <p className="text-sm font-semibold text-emerald-100">{US_COPY.firstRecoveryTitle}</p>
-          <p className="text-sm leading-relaxed text-zinc-200">{body}</p>
-          <p className="text-[11px] leading-snug text-zinc-500">{US_COPY.disclaimerShort}</p>
+          <p className="text-base font-semibold text-emerald-50 sm:text-sm sm:text-emerald-100">{US_COPY.firstRecoveryTitle}</p>
+          <p className="text-base leading-relaxed text-zinc-100 sm:text-sm sm:text-zinc-200">{body}</p>
+          <p className="text-base leading-snug text-zinc-300 sm:text-[11px] sm:text-zinc-500">{US_COPY.disclaimerShort}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
           {!isPro ? (
             <Link
               href="/upgrade"
-              className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-lg bg-emerald-500 px-4 py-3 text-base font-bold text-emerald-950 transition hover:bg-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:min-h-0 sm:py-2 sm:text-sm sm:font-semibold"
             >
               {US_COPY.ctaUpgrade}
             </Link>
           ) : (
             <Link
               href="/dashboard/refund-history"
-              className="inline-flex items-center justify-center rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-base font-bold text-emerald-50 transition hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 sm:min-h-0 sm:py-2 sm:text-sm sm:font-semibold sm:text-emerald-100"
             >
               {US_COPY.ctaViewHistory}
             </Link>
@@ -81,7 +81,7 @@ export function FirstRecoveryBanner({ userId, totalCents, refundCount, isPro }: 
           <button
             type="button"
             onClick={onDismiss}
-            className="text-[11px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+            className="text-base font-semibold text-zinc-300 underline-offset-2 hover:text-zinc-200 hover:underline sm:text-[11px] sm:font-medium sm:text-zinc-500"
           >
             {US_COPY.dismiss}
           </button>

@@ -5,7 +5,7 @@ import { getPaddlePriceIds } from '@/lib/billing/paddleEnv';
 export const dynamic = 'force-dynamic';
 
 /**
- * Returns Paddle Billing checkout payload (overlay). Client opens Paddle.js — no Stripe redirect.
+ * Returns Paddle Billing checkout payload (overlay). Client opens checkout via `@paddle/paddle-js`.
  * Requires NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, PADDLE_PRICE_MONTHLY, PADDLE_PRICE_ANNUAL.
  */
 export async function POST(request: Request) {

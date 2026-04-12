@@ -32,36 +32,36 @@ export function MonitorCard({
           >
             {icon}
           </div>
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
+          <h3 className="text-2xl font-bold !leading-tight text-white sm:text-sm sm:font-semibold">{title}</h3>
         </div>
         <dl className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
+            <dt className="!text-base !font-bold uppercase tracking-wider text-zinc-200 sm:!text-[10px] sm:font-medium sm:text-[var(--muted)]">
               Orders Scanned
             </dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums text-white sm:text-xl">
+            <dd className="mt-1 text-2xl !font-bold !leading-tight tabular-nums text-white sm:text-lg sm:font-semibold sm:text-xl">
               {ordersScanned.toLocaleString()}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
+            <dt className="!text-base !font-bold uppercase tracking-wider text-zinc-200 sm:!text-[10px] sm:font-medium sm:text-[var(--muted)]">
               AI Audited
             </dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums text-white sm:text-xl">
+            <dd className="mt-1 text-2xl !font-bold !leading-tight tabular-nums text-white sm:text-lg sm:font-semibold sm:text-xl">
               {claimsSubmitted.toLocaleString()}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
+            <dt className="!text-base !font-bold uppercase tracking-wider text-zinc-200 sm:!text-[10px] sm:font-medium sm:text-[var(--muted)]">
               Compensation recovered
             </dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--accent)] sm:text-xl">
+            <dd className="mt-1 text-2xl !font-bold !leading-tight tabular-nums text-[var(--accent)] sm:text-lg sm:font-semibold sm:text-xl">
               {refundsRecovered.toLocaleString()}
             </dd>
           </div>
         </dl>
         {ordersScanned === 0 && claimsSubmitted === 0 && refundsRecovered === 0 ? (
-          <p className="mt-4 text-[11px] leading-snug text-zinc-500">Waiting for your first scan...</p>
+          <p className="mt-4 !text-base !font-medium leading-snug text-zinc-200 sm:text-[11px] sm:!font-normal sm:text-zinc-500">Waiting for your first scan...</p>
         ) : null}
       </div>
     </div>

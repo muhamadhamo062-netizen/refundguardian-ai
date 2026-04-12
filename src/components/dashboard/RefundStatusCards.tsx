@@ -69,7 +69,7 @@ function StatusPill({ uiStatus }: { uiStatus: RefundStatusCardRow['uiStatus'] })
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${styles[uiStatus]}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-sm font-bold sm:py-0.5 sm:text-[11px] sm:font-semibold ${styles[uiStatus]}`}
     >
       {label[uiStatus]}
     </span>
@@ -89,15 +89,15 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
     <div className="rounded-xl border border-[var(--border)] bg-gradient-to-b from-[var(--card)] to-[#0d0e12] shadow-lg shadow-black/20 overflow-hidden">
       <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
-          <h3 className="text-sm font-semibold text-white">Refund status</h3>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
+          <h3 className="text-lg font-semibold text-white sm:text-sm">Refund status</h3>
+          <p className="mt-0.5 text-base text-[var(--muted)] sm:text-xs">
             Paid, detected opportunities, and items still processing
           </p>
         </div>
         {rows.length > maxCards && (
           <Link
             href="/dashboard/refund-history"
-            className="text-xs font-medium text-[var(--accent)] hover:text-[var(--accent-muted)]"
+            className="text-base font-semibold text-[var(--accent)] hover:text-[var(--accent-muted)] sm:text-xs sm:font-medium"
           >
             View all
           </Link>
@@ -106,7 +106,7 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
 
       <ul className="divide-y divide-[var(--border)]/60">
         {display.length === 0 ? (
-          <li className="px-4 py-10 text-center text-sm text-[var(--muted)] sm:px-6">
+          <li className="px-4 py-10 text-center text-base text-[var(--muted)] sm:px-6 sm:text-sm">
             No refund activity yet. Connect Gmail or the extension — matches will appear here.
           </li>
         ) : (
@@ -118,10 +118,10 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
               <PlatformMark providerKey={row.providerKey} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-medium text-white">{row.merchantLabel}</p>
+                  <p className="truncate text-base font-semibold text-white sm:text-sm sm:font-medium">{row.merchantLabel}</p>
                   <StatusPill uiStatus={row.uiStatus} />
                 </div>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">
+                <p className="mt-0.5 text-base text-zinc-300 sm:text-xs sm:text-[var(--muted)]">
                   {row.occurred_at
                     ? new Date(row.occurred_at).toLocaleString(undefined, {
                         month: 'short',
@@ -131,7 +131,7 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
                     : '—'}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums text-emerald-400">
+              <p className="shrink-0 text-right text-xl font-bold tabular-nums text-emerald-300 sm:text-lg sm:text-emerald-400">
                 ${((row.amount_cents ?? 0) / 100).toFixed(2)}
               </p>
             </li>
@@ -143,7 +143,7 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
         <div className="border-t border-[var(--border)] px-4 py-3 text-center sm:px-6">
           <Link
             href="/dashboard/refund-history"
-            className="text-xs font-medium text-[var(--muted)] hover:text-[var(--accent)]"
+            className="text-base font-semibold text-[var(--muted)] hover:text-[var(--accent)] sm:text-xs sm:font-medium"
           >
             View full history →
           </Link>

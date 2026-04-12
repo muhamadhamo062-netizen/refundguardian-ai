@@ -19,10 +19,10 @@ export function FaqSection() {
       aria-labelledby="faq-heading"
     >
       <div className="mx-auto max-w-3xl">
-        <h2 id="faq-heading" className="text-center text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <h2 id="faq-heading" className="text-center text-3xl font-bold tracking-tight text-white sm:text-3xl">
           Frequently asked questions
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-[var(--muted)]">
+        <p className="mx-auto mt-3 max-w-xl text-center text-base text-[var(--muted)] sm:text-sm">
           Quick answers about safety, devices, savings, and where Refyndra works.
         </p>
 
@@ -40,7 +40,7 @@ export function FaqSection() {
                     aria-expanded={isOpen}
                     aria-controls={panelId}
                     onClick={() => toggle(i)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-white transition hover:bg-white/[0.03] sm:px-6 sm:text-base"
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-base font-semibold text-white transition hover:bg-white/[0.03] sm:px-6 sm:text-base"
                   >
                     <span>{item.q}</span>
                     <span
@@ -62,7 +62,7 @@ export function FaqSection() {
                   hidden={!isOpen}
                   className={isOpen ? 'border-t border-[var(--border)]' : undefined}
                 >
-                  <p className="px-5 pb-5 pt-3 text-sm leading-relaxed text-[var(--muted)] sm:px-6 sm:text-[15px]">
+                  <p className="px-5 pb-5 pt-3 text-base leading-relaxed text-[var(--muted)] sm:px-6 sm:text-[15px]">
                     {item.a}
                   </p>
                 </div>

@@ -55,7 +55,7 @@ export function DashboardHealthStrip() {
     return (
       <div
         role="status"
-        className="mt-4 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2 text-xs text-red-200"
+        className="mt-4 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-base font-medium text-red-100 sm:py-2 sm:text-xs sm:font-normal sm:text-red-200"
       >
         We couldn’t verify your connection. Check your network and try refreshing the page.
       </div>
@@ -78,7 +78,7 @@ export function DashboardHealthStrip() {
   return (
     <div
       role="status"
-      className="mt-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+      className="mt-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-base font-medium text-amber-50 sm:py-2 sm:text-xs sm:font-normal sm:text-amber-100"
     >
       <span className="font-medium text-amber-50">Heads up: </span>
       {issues.join(' ')}
