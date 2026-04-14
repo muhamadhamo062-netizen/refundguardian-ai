@@ -1,3 +1,4 @@
+// PADDLE_VERIFICATION_V3
 // DEPLOY_ID: 638194205
 // Mobile update v2 - 2026-04-11T18:30:00Z
 import type { Metadata, Viewport } from 'next';
