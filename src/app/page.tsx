@@ -1,3 +1,4 @@
+// GLOBAL_SYNC_V1_APRIL_14
 // Mobile update v2 - 2026-04-11T18:30:00Z
 import type { Metadata } from 'next';
 import { Navbar } from '@/components/layout/Navbar';
