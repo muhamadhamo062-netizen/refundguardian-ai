@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
 import { analyzeRefundDecisions, decisionsMapToArray } from '@/lib/ai/refundDecisionEngine';
 import type { RefundDecisionInput } from '@/lib/ai/refundDecision.types';
+import { generateHumanLikeComplaint, type ComplaintPlatform } from '@/lib/ai/complaintGenerator';
 import { isOrderWithinFreeTrialWindow } from '@/lib/billing/orderDateWindow';
 import {
   isFreeTrialAiLocked,
@@ -13,6 +14,17 @@ import {
 export const dynamic = 'force-dynamic';
 
 const MAX_ORDERS_CAP = 30;
+
+const DELAY_COMPLAINT_PLATFORMS = new Set<string>([
+  'amazon',
+  'talabat',
+  'instashop',
+  'deliveroo',
+]);
+
+function isDelayIssue(issueType: string): boolean {
+  return /late|delay/i.test(issueType);
+}
 
 /**
  * POST advisory AI refund decisions (OpenAI). Does not mutate orders in DB.
@@ -93,8 +105,33 @@ export async function POST(request: Request) {
 
     const map = await analyzeRefundDecisions(orders);
     const decisions = decisionsMapToArray(orders, map);
+    const enhanced = await Promise.all(
+      decisions.map(async (d) => {
+        const src = orders.find((o) => o.id === d.id);
+        if (!src) return d;
+        const p = String(src.platform || '').toLowerCase();
+        if (!DELAY_COMPLAINT_PLATFORMS.has(p) || !isDelayIssue(String(src.issue_type || ''))) {
+          return { ...d, complaint_status: 'not_applicable' as const };
+        }
+        try {
+          const c = await generateHumanLikeComplaint({
+            platform: p as ComplaintPlatform,
+            issues: ['Late delivery / service delay'],
+            model: 'gpt-4o-mini',
+            context: `Order ${src.order_id} delay complaint`,
+          });
+          return {
+            ...d,
+            ai_complaint: c.draft,
+            complaint_status: 'generated' as const,
+          };
+        } catch {
+          return { ...d, complaint_status: 'failed' as const };
+        }
+      })
+    );
 
-    const potentialCents = decisions.reduce(
+    const potentialCents = enhanced.reduce(
       (s, d) => s + Math.round((d.estimated_refund ?? 0) * 100),
       0
     );
@@ -117,7 +154,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      decisions,
+      decisions: enhanced,
       advisory: true,
       ai_limit: tierLimit,
       ai_truncated: ordersRaw.length > tierLimit || eligible.length < ordersRaw.length,

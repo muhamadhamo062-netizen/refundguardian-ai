@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import {
+  generateHumanLikeComplaint,
+  type ComplaintPlatform,
+} from '@/lib/ai/complaintGenerator';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-type PlatformKey = 'amazon' | 'uber_eats' | 'uber_rides' | 'doordash';
+type PlatformKey =
+  | 'amazon'
+  | 'talabat'
+  | 'instashop'
+  | 'deliveroo'
+  | 'uber_eats'
+  | 'uber_rides'
+  | 'doordash';
 type ManualIssueKey =
   | 'missing_item'
   | 'cold_food'
@@ -21,6 +31,9 @@ type Body = {
 function asPlatform(v: unknown): PlatformKey | null {
   switch (v) {
     case 'amazon':
+    case 'talabat':
+    case 'instashop':
+    case 'deliveroo':
     case 'uber_eats':
     case 'uber_rides':
     case 'doordash':
@@ -50,6 +63,9 @@ function normalizeManualIssues(v: unknown): ManualIssueKey[] {
 }
 
 function platformLabel(p: PlatformKey): string {
+  if (p === 'talabat') return 'Talabat';
+  if (p === 'instashop') return 'InstaShop';
+  if (p === 'deliveroo') return 'Deliveroo';
   if (p === 'uber_eats') return 'Uber Eats';
   if (p === 'uber_rides') return 'Uber Rides';
   if (p === 'doordash') return 'DoorDash';
@@ -60,6 +76,12 @@ function platformPlaybook(p: PlatformKey): string {
   switch (p) {
     case 'amazon':
       return `Amazon: write as a Prime/customer with a defective or incorrect order. Reference expectations under Amazon's customer-facing policies (e.g. A-to-z where relevant to the situation). Demand a concrete remedy: replacement, partial refund, or account credit proportional to the failure. Name the problem (missing item, wrong charge, damage) with neutral facts.`;
+    case 'talabat':
+      return `Talabat: stress delayed or degraded service quality and paid-fee expectations. Ask for a concrete remedy and written confirmation.`;
+    case 'instashop':
+      return `InstaShop: stress delay and grocery freshness/service expectations. Ask for a policy-aligned credit or refund with clear facts.`;
+    case 'deliveroo':
+      return `Deliveroo: stress timing/service failure and paid-fee expectations. Request direct remediation and support confirmation.`;
     case 'uber_eats':
       return `Uber Eats: stress food safety/quality and order accuracy; fees paid for a service that was not delivered as ordered. Ask for a full review and a remedy consistent with Uber Eats support practice (credit or partial refund). Stay factual about what was wrong with the meal or order.`;
     case 'uber_rides':
@@ -90,7 +112,7 @@ function issueLabel(i: ManualIssueKey): string {
 
 export async function POST(req: Request) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+  const model = 'gpt-4o-mini';
   if (!apiKey) {
     return NextResponse.json(
       { ok: false, error: 'AI drafting not configured (OPENAI_API_KEY missing)' },
@@ -118,43 +140,25 @@ export async function POST(req: Request) {
     );
   }
 
-  const issuesText = manualIssues.map(issueLabel).join(', ');
-  const pLabel = platformLabel(platform);
-  const playbook = platformPlaybook(platform);
-
-  const system = `You are an expert consumer advocate drafting outbound messages to large US platforms (Amazon, Uber, Uber Eats, DoorDash).
-Your job is to produce the strongest *professional* request possible: clear facts, firm tone, explicit ask for remedy, escalation-friendly wording — without crossing into harassment, false legal threats, or guaranteed outcomes.
-Never claim court action, lawyers, or guaranteed refunds. Never mention AI, bots, or "automated" systems.
-Never invent order numbers or amounts; use placeholders like [Order date] or [Order ID] only if needed.
-Output ONLY the final message body (no markdown, no quotes, no subject line).`;
-
-  const user = `Write a powerful, persuasive support message for ${pLabel}.
-Platform guidance:
-${playbook}
-
-Hard rules:
-- Do NOT focus on late delivery or trip delay (handled elsewhere). Issues to address: ${issuesText}.
-- 8–14 sentences: open with purpose, state facts, then bullet list (2–5 bullets) of issues, then explicit ask for review and remedy (credit, partial refund, replacement, or account adjustment per policy).
-- Tone: confident, respectful, impossible to dismiss as vague — but never abusive.
-- Ask for written confirmation of the resolution if appropriate.
-- Close with "[Your Name]" as placeholder.`;
-
   try {
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
+    const response = await generateHumanLikeComplaint({
+      platform: platform as ComplaintPlatform,
+      issues: manualIssues.map(issueLabel),
       model,
-      temperature: 0.15,
-      max_tokens: 520,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+      context: `Generate a high-pressure complaint for ${platformLabel(platform)} with platform guidance: ${platformPlaybook(
+        platform
+      )}`,
     });
-    const text = completion.choices[0]?.message?.content?.trim() || '';
-    if (!text) {
+    if (!response.draft) {
       return NextResponse.json({ ok: false, error: 'Empty AI response' }, { status: 502 });
     }
-    return NextResponse.json({ ok: true, draft: text });
+    return NextResponse.json({
+      ok: true,
+      draft: response.draft,
+      complaint_tone: response.tone,
+      model: response.model,
+      complaint_status: 'generated',
+    });
   } catch (e) {
     console.error('[api/ai/draft-compensation]', e);
     return NextResponse.json({ ok: false, error: 'AI request failed' }, { status: 502 });

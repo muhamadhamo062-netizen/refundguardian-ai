@@ -75,6 +75,12 @@ const ROWS: RowSpec[] = [
 ];
 
 type SelectionState = Record<PlatformKey, Partial<Record<IssueKey, boolean>>>;
+type ComplaintStatus = 'idle' | 'generating' | 'generated' | 'failed';
+type ComplaintState = {
+  status: ComplaintStatus;
+  complaint: string;
+  tone?: string;
+};
 
 function emptySelection(): SelectionState {
   return {
@@ -114,6 +120,12 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   const [toast, setToast] = useState<string | null>(null);
   /** null = loading; false = template-only; true = AI-assisted drafts */
   const [aiDraftingEnabled, setAiDraftingEnabled] = useState<boolean | null>(null);
+  const [complaints, setComplaints] = useState<Record<PlatformKey, ComplaintState>>({
+    amazon: { status: 'idle', complaint: '' },
+    uber_eats: { status: 'idle', complaint: '' },
+    uber_rides: { status: 'idle', complaint: '' },
+    doordash: { status: 'idle', complaint: '' },
+  });
 
   const draftButtonLabel = useMemo(
     () => (aiDraftingEnabled === false ? 'Use guided template' : 'Draft message'),
@@ -289,19 +301,23 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   );
 
   const openDraft = useCallback(
-    async (platform: PlatformKey) => {
+    async (platform: PlatformKey): Promise<string | null> => {
       const row = ROWS.find((r) => r.key === platform);
       const manual = sel[platform] || {};
       const selectedKeys = row?.manual.filter((m) => manual[m.issueKey]).map((m) => m.issueKey) ?? [];
       if (!selectedKeys.length) {
         setToast('Select at least one issue above first.');
         window.setTimeout(() => setToast(null), 2500);
-        return;
+        return null;
       }
 
       setDraftOpen({ platform });
       setDraftLoading(true);
       setDraftText('');
+      setComplaints((cur) => ({
+        ...cur,
+        [platform]: { ...cur[platform], status: 'generating' },
+      }));
       void refreshGmailStatus();
 
       try {
@@ -310,26 +326,48 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ platform, manualIssues: selectedKeys }),
         });
-        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; draft?: string; error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          draft?: string;
+          error?: string;
+          complaint_tone?: string;
+        };
         if (!res.ok || body.ok !== true || typeof body.draft !== 'string') {
           const fallback = `Hi,\n\nI’m reaching out about my recent ${row?.label ?? 'order'}.\n\nIssue(s): ${selectedKeys.join(
             ', '
           )}\n\nPlease review and assist with an appropriate adjustment.\n\nThanks,\n[Your Name]`;
           setDraftText(fallback);
+          setComplaints((cur) => ({
+            ...cur,
+            [platform]: { ...cur[platform], status: 'failed', complaint: fallback },
+          }));
           setToast(
             aiDraftingEnabled === false
               ? 'Guided template only — smart drafting can be enabled for your account by your team.'
               : body.error || 'Could not generate a draft. Showing a simple template instead.'
           );
           window.setTimeout(() => setToast(null), 4500);
-          return;
+          return fallback;
         }
         setDraftText(body.draft);
+        setComplaints((cur) => ({
+          ...cur,
+          [platform]: {
+            status: 'generated',
+            complaint: body.draft,
+            tone: body.complaint_tone,
+          },
+        }));
+        return body.draft;
       } catch (e) {
         const fallback = `Hi,\n\nI’m reaching out about my recent ${row?.label ?? 'order'}.\n\nIssue(s): ${selectedKeys.join(
           ', '
         )}\n\nPlease review and assist with an appropriate adjustment.\n\nThanks,\n[Your Name]`;
         setDraftText(fallback);
+        setComplaints((cur) => ({
+          ...cur,
+          [platform]: { ...cur[platform], status: 'failed', complaint: fallback },
+        }));
         setToast(
           aiDraftingEnabled === false
             ? 'Using a simple template — smart drafting isn’t enabled on this account yet.'
@@ -338,11 +376,37 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
               : 'Draft request failed. Showing template instead.'
         );
         window.setTimeout(() => setToast(null), 4500);
+        return fallback;
       } finally {
         setDraftLoading(false);
       }
     },
     [aiDraftingEnabled, refreshGmailStatus, sel]
+  );
+
+  const copyAiComplaint = useCallback(
+    async (platform: PlatformKey) => {
+      const existing = complaints[platform];
+      let text = existing?.complaint?.trim() ?? '';
+      if (!text) {
+        const generated = await openDraft(platform);
+        text = generated?.trim() ?? '';
+      }
+      if (!text) {
+        setToast('No complaint available yet.');
+        window.setTimeout(() => setToast(null), 2500);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        setToast('AI complaint copied.');
+      } catch {
+        setToast('Could not copy complaint.');
+      } finally {
+        window.setTimeout(() => setToast(null), 2500);
+      }
+    },
+    [complaints, openDraft]
   );
 
   const closeDraft = useCallback(() => {
@@ -612,6 +676,18 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 <p className="mt-2 text-base text-[var(--muted)] sm:text-[11px]">
                   Selected: <span className="font-semibold text-zinc-100 sm:font-medium sm:text-zinc-200">{manualCount}</span>
                 </p>
+                <p className="mt-1 text-sm text-zinc-400 sm:text-[11px]">
+                  Complaint status:{' '}
+                  <span className="font-semibold text-zinc-200">
+                    {complaints[row.key]?.status === 'generated'
+                      ? 'Generated'
+                      : complaints[row.key]?.status === 'generating'
+                        ? 'Generating'
+                        : complaints[row.key]?.status === 'failed'
+                          ? 'Fallback ready'
+                          : 'Not generated'}
+                  </span>
+                </p>
               </div>
 
               {hasManual ? (
@@ -630,6 +706,13 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                     className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-base font-bold text-zinc-100 hover:bg-white/[0.02] sm:min-h-[40px] sm:text-[12px] sm:font-semibold sm:text-zinc-200"
                   >
                     {draftButtonLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyAiComplaint(row.key)}
+                    className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-base font-bold text-emerald-100 hover:bg-emerald-500/15 sm:min-h-[40px] sm:text-[12px] sm:font-semibold"
+                  >
+                    Copy AI Complaint
                   </button>
                 </div>
               ) : null}
@@ -651,6 +734,9 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
               </th>
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
                 Additional issues (optional)
+              </th>
+              <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
+                Complaint status
               </th>
               <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
                 Actions
@@ -706,6 +792,18 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                     </p>
                   </td>
 
+                  <td className="px-4 py-4 sm:px-6">
+                    <span className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[11px] text-zinc-300">
+                      {complaints[row.key]?.status === 'generated'
+                        ? `Generated${complaints[row.key]?.tone ? ` (${complaints[row.key]?.tone})` : ''}`
+                        : complaints[row.key]?.status === 'generating'
+                          ? 'Generating...'
+                          : complaints[row.key]?.status === 'failed'
+                            ? 'Fallback ready'
+                            : 'Not generated'}
+                    </span>
+                  </td>
+
                   <td className="px-4 py-4 text-right sm:px-6">
                     <div className="flex flex-col items-end gap-2">
                       <button
@@ -733,6 +831,13 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                             className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-[11px] font-semibold text-zinc-200 hover:bg-white/[0.02]"
                           >
                             {draftButtonLabel}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void copyAiComplaint(row.key)}
+                            className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-500/15"
+                          >
+                            Copy AI Complaint
                           </button>
                         </>
                       ) : null}

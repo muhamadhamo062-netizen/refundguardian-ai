@@ -14,6 +14,8 @@ export type RefundDecisionOutput = {
   estimated_refund: number;
   reason: string;
   claim_message: string;
+  complaint_status?: 'generated' | 'not_applicable' | 'failed';
+  ai_complaint?: string;
   /** 0–100 confidence in this advisory (optional for older clients). */
   confidence?: number;
 };
