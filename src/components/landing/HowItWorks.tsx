@@ -2,7 +2,7 @@ const steps = [
   {
     step: 1,
     title: 'Sign up with email',
-    description: 'Create your account — free trial starts with a limited AI scan.',
+    description: 'Create your account and sign in securely with Supabase Auth.',
     icon: (
       <svg
         className="h-6 w-6 text-emerald-400"
@@ -27,7 +27,7 @@ const steps = [
   {
     step: 2,
     title: 'AI scans recent orders',
-    description: 'Complimentary pass: recent orders only, small batch — one-time on the free tier.',
+    description: 'We scan your synced order signals and prioritize refund opportunities.',
     icon: (
       <svg
         className="h-6 w-6 text-teal-400"
@@ -83,26 +83,6 @@ const steps = [
       </svg>
     ),
   },
-  {
-    step: 5,
-    title: 'Upgrade for full automation',
-    description: 'Unlock unlimited scanning and optional automation via Stripe Checkout — no silent billing.',
-    icon: (
-      <svg
-        className="h-6 w-6 text-emerald-300"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.8}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-        />
-      </svg>
-    ),
-  },
 ];
 
 export function HowItWorks() {
@@ -114,9 +94,9 @@ export function HowItWorks() {
       <div className="mx-auto max-w-6xl">
         <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">How it works</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-[var(--muted)]">
-          From signup to a clear upgrade path — you always know what&apos;s free and what&apos;s Pro.
+          From signup to automated monitoring — transparent, controlled, and fast.
         </p>
-        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map(({ step, title, description, icon }) => (
             <div
               key={step}

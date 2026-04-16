@@ -1,39 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseClient } from '@/lib/supabase/api';
-import { isProSubscriber } from '@/lib/billing/plan';
+import { requireUser } from '@/lib/supabase/requireUser';
 
 export const dynamic = 'force-dynamic';
 
-/** Toggle autonomous automation flag (Pro only; never executes merchant refunds server-side). */
+/** Toggle autonomous automation flag (user-controlled). */
 export async function PATCH(request: Request) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.replace(/^Bearer\s+/i, '');
-    if (!token) {
-      return NextResponse.json({ ok: false, error: 'Missing Authorization token' }, { status: 401 });
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
     }
-
-    const supabase = createSupabaseClient(token);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('plan, subscription_status, trial_ends_at')
-      .eq('id', user.id)
-      .single();
-
-    if (!isProSubscriber(profile)) {
-      return NextResponse.json(
-        { ok: false, error: 'Pro subscription required for Autonomous mode' },
-        { status: 403 }
-      );
-    }
+    const { supabase, user } = auth;
 
     let body: { autonomous_mode_enabled?: boolean };
     try {

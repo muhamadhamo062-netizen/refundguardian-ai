@@ -103,7 +103,7 @@ export function inferPlatformFromProvider(
 }
 
 /**
- * Heuristic from synced row text (product line + optional status from extension).
+ * Heuristic from synced row text (product line + optional status when available).
  * Does not change ingestion — UI-only classification.
  */
 export function inferIssueTypeFromRow(input: {

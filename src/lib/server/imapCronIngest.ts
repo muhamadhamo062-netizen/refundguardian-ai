@@ -16,6 +16,9 @@ export type ImapCredentialRow = {
   user_id: string;
   gmail_address: string;
   encrypted_app_password: string;
+  auto_send_enabled?: boolean | null;
+  auto_send_recipient?: string | null;
+  auto_send_from_name?: string | null;
 };
 
 export type CronUserResult = {
@@ -26,6 +29,42 @@ export type CronUserResult = {
   letters: number;
   error?: string;
 };
+
+type IngestAllOptions = {
+  /** Max users to scan in this invocation (default: unlimited). */
+  maxUsers?: number;
+  /** DB page size for selecting creds (default: 25). */
+  pageSize?: number;
+  /** Per-user IMAP ingest timeout (default: 45s). */
+  perUserTimeoutMs?: number;
+  /** Hard deadline for the whole run (default: 270s). */
+  deadlineMs?: number;
+};
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  if (!Number.isFinite(ms) || ms <= 0) return p;
+  return Promise.race([
+    p,
+    new Promise<T>((_, rej) => {
+      const t = setTimeout(() => rej(new Error(`${label}_timeout`)), ms);
+      // Avoid keeping the event loop alive.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (t as any).unref?.();
+    }),
+  ]);
+}
+
+function computeBackoffMs(streak: number): number {
+  // 15m, 30m, 60m, 120m, ... capped at 6h
+  const base = 15 * 60 * 1000;
+  const cap = 6 * 60 * 60 * 1000;
+  const pow = Math.min(10, Math.max(0, streak));
+  return Math.min(cap, base * Math.pow(2, Math.max(0, pow - 1)));
+}
 
 export async function ingestImapForUser(
   admin: SupabaseClient,
@@ -147,6 +186,14 @@ export async function ingestImapForUser(
           actual_delivery_time: insertRow.actual_delivery_time,
           order_value_cents: draft.order_value_cents,
           currency: draft.currency,
+          merchant_name: draft.merchant_name,
+          smtp: {
+            gmail_address: row.gmail_address,
+            app_password: appPassword,
+            auto_send_enabled: row.auto_send_enabled ?? false,
+            auto_send_recipient: row.auto_send_recipient ?? null,
+            auto_send_from_name: row.auto_send_from_name ?? null,
+          },
         });
         if (letterRes.triggered) {
           result.letters += 1;
@@ -164,31 +211,97 @@ export async function ingestImapForUser(
   return result;
 }
 
-export async function ingestImapForAllUsers(admin: SupabaseClient): Promise<CronUserResult[]> {
-  const { data: rows, error } = await admin
-    .from('imap_app_credentials')
-    .select('user_id, gmail_address, encrypted_app_password');
-
-  if (error) {
-    throw new Error(error.message);
-  }
+export async function ingestImapForAllUsers(
+  admin: SupabaseClient,
+  options: IngestAllOptions = {}
+): Promise<CronUserResult[]> {
+  const startedAt = Date.now();
+  const maxUsers = typeof options.maxUsers === 'number' && options.maxUsers > 0 ? options.maxUsers : Infinity;
+  const pageSize = typeof options.pageSize === 'number' && options.pageSize > 0 ? Math.min(200, options.pageSize) : 25;
+  const perUserTimeoutMs =
+    typeof options.perUserTimeoutMs === 'number' && options.perUserTimeoutMs > 0
+      ? options.perUserTimeoutMs
+      : 45_000;
+  const deadlineMs =
+    typeof options.deadlineMs === 'number' && options.deadlineMs > 0 ? options.deadlineMs : 270_000;
 
   const results: CronUserResult[] = [];
-  for (const row of rows ?? []) {
-    try {
-      results.push(
-        await ingestImapForUser(admin, row as ImapCredentialRow)
-      );
-    } catch (e) {
-      results.push({
-        user_id: row.user_id,
-        gmail_address: row.gmail_address,
-        fetched: 0,
-        inserted: 0,
-        letters: 0,
-        error: e instanceof Error ? e.message : String(e),
-      });
+  let offset = 0;
+
+  while (results.length < maxUsers) {
+    if (Date.now() - startedAt > deadlineMs) break;
+
+    const { data: rows, error } = await admin
+      .from('imap_app_credentials')
+      .select(
+        'user_id, gmail_address, encrypted_app_password, auto_send_enabled, auto_send_recipient, auto_send_from_name, next_scan_after, scan_error_streak'
+      )
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw new Error(error.message);
+    if (!rows?.length) break;
+
+    offset += rows.length;
+
+    for (const raw of rows) {
+      if (results.length >= maxUsers) break;
+      if (Date.now() - startedAt > deadlineMs) break;
+
+      const row = raw as ImapCredentialRow & {
+        next_scan_after?: string | null;
+        scan_error_streak?: number | null;
+      };
+
+      const nextScanAfter = typeof row.next_scan_after === 'string' ? new Date(row.next_scan_after) : null;
+      if (nextScanAfter && !Number.isNaN(nextScanAfter.getTime()) && nextScanAfter.getTime() > Date.now()) {
+        continue;
+      }
+
+      // A small pause avoids a thundering herd against Gmail when many users connect at once.
+      await sleep(75);
+
+      let res: CronUserResult;
+      const nowIso = new Date().toISOString();
+      try {
+        res = await withTimeout(
+          ingestImapForUser(admin, row),
+          perUserTimeoutMs,
+          'imap_user_ingest'
+        );
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        res = {
+          user_id: row.user_id,
+          gmail_address: row.gmail_address,
+          fetched: 0,
+          inserted: 0,
+          letters: 0,
+          error: errMsg,
+        };
+      }
+
+      results.push(res);
+
+      const prevStreak = typeof row.scan_error_streak === 'number' ? row.scan_error_streak : 0;
+      const nextStreak = res.error ? prevStreak + 1 : 0;
+      const nextScanAfterIso = res.error
+        ? new Date(Date.now() + computeBackoffMs(nextStreak)).toISOString()
+        : null;
+
+      await admin
+        .from('imap_app_credentials')
+        .update({
+          last_scan_at: nowIso,
+          last_scan_inserted: res.inserted,
+          last_scan_error: res.error ?? null,
+          updated_at: nowIso,
+          scan_error_streak: nextStreak,
+          next_scan_after: nextScanAfterIso,
+        })
+        .eq('user_id', row.user_id);
     }
   }
+
   return results;
 }

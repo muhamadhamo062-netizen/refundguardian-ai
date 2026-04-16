@@ -18,8 +18,8 @@ export default function TermsPage() {
             and your own follow-up.
           </p>
           <p>
-            Subscriptions and trials are described at checkout. You are responsible for keeping your account
-            credentials secure. We may update these terms; continued use after changes constitutes acceptance.
+            You are responsible for keeping your account credentials secure. We may update these terms; continued use
+            after changes constitutes acceptance.
           </p>
           <p className="text-sm text-[var(--muted)]">
             Nothing on this site constitutes legal, tax, or financial advice. Replace the support email

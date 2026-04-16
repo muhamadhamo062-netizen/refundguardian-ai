@@ -1,60 +1,25 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { useLayoutEffect, useState } from 'react';
+import { GmailImapConnect } from '@/components/dashboard/GmailImapConnect';
 
-import { ConnectionSetupSkeleton } from '@/components/dashboard/ConnectionSetupSkeleton';
-import type { ExtensionTokenVariant } from '@/components/dashboard/ExtensionToken';
-
-const MOBILE_MQ = '(max-width: 767px)';
-
-const GmailImapConnect = dynamic(
-  () =>
-    import('@/components/dashboard/GmailImapConnect').then((m) => ({ default: m.GmailImapConnect })),
-  { ssr: false, loading: () => <ConnectionSetupSkeleton /> }
-);
-
-const ExtensionToken = dynamic(
-  () =>
-    import('@/components/dashboard/ExtensionToken').then((m) => ({ default: m.ExtensionToken })),
-  { ssr: false, loading: () => <ConnectionSetupSkeleton /> }
-);
-
-type Props = {
-  variant?: ExtensionTokenVariant;
-};
-
-type Phase = 'boot' | 'mobile' | 'desktop';
-
-/**
- * Conditional rendering: mobile → Gmail App Password UI; desktop/tablet → Chrome extension UI.
- * Uses a stable `boot` phase + dynamic(ssr:false) to avoid React 18 dev Strict Mode / hydration
- * `removeChild` errors when swapping large subtrees.
- */
-export function ConnectionSetupSection({ variant = 'dashboard' }: Props) {
-  const [phase, setPhase] = useState<Phase>('boot');
-
-  useLayoutEffect(() => {
-    const mq = window.matchMedia(MOBILE_MQ);
-    const apply = () => {
-      setPhase(mq.matches ? 'mobile' : 'desktop');
-    };
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
-
-  if (phase === 'boot') {
-    return <ConnectionSetupSkeleton />;
-  }
-
+export function ConnectionSetupSection() {
   return (
-    <div className="min-w-0" suppressHydrationWarning>
-      {phase === 'mobile' ? (
-        <GmailImapConnect key="rg-setup-gmail" />
-      ) : (
-        <ExtensionToken key="rg-setup-ext" variant={variant} />
-      )}
+    <div className="grid gap-3 sm:grid-cols-2">
+      <GmailImapConnect />
+      <div className="hidden sm:block rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-lg shadow-black/20">
+        <p className="text-sm font-semibold text-white">Background scans</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+          Once connected, we run scheduled inbox scans to keep your order vault fresh. If a delay signal is detected,
+          we draft a dispute-quality complaint automatically and keep it ready to copy (or send, if you enable auto-send).
+        </p>
+        <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Security</p>
+          <p className="mt-1 text-xs text-zinc-300">
+            Your App Password is encrypted server-side before being stored. You can remove the connection anytime.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
+

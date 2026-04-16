@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/client';
 
 const baseLinks = [
   { href: '/#how-it-works', label: 'How It Works' },
-  { href: '/pricing', label: 'Pricing' },
 ] as const;
 
 export function Navbar() {

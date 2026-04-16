@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
-import OpenAI from 'openai';
+import { generateStructuredComplaint } from '@/lib/ai/complaintGenerator';
+import type { RefundPlatform } from '@/lib/refundPriorityEngine';
+
+function asRefundPlatform(provider: string | null | undefined): RefundPlatform {
+  const p = (provider ?? '').toLowerCase();
+  if (p.includes('doordash')) return 'doordash';
+  if (p.includes('eats')) return 'uber_eats';
+  if (p.includes('uber')) return 'uber_rides';
+  return 'amazon';
+}
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('Authorization');
@@ -47,21 +56,21 @@ export async function POST(request: Request) {
   const hasConsent = !!profile?.consent_given_at;
 
   if (body.action === 'generate') {
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
+    if (!process.env.OPENAI_API_KEY?.trim()) {
       return NextResponse.json({ message: 'AI message generation not configured', text: null }, { status: 200 });
     }
-    const client = new OpenAI({ apiKey: openaiKey });
-    const prompt = `Generate a short, professional compensation request message for a delayed delivery.
-Provider: ${order.provider}. Order ID: ${order.order_id || 'N/A'}. 
-Promised: ${order.promised_delivery_time}. Actual: ${order.actual_delivery_time}.
-Request compensation for the delay. One short paragraph, polite but firm.`;
-    const completion = await client.chat.completions.create({
+    const text = await generateStructuredComplaint({
+      platform: asRefundPlatform(order.provider),
+      issues: [
+        'Delivery was late compared to the promised time.',
+        order.order_id ? `Order reference: ${order.order_id}` : 'Order reference unavailable.',
+      ],
+      toneSeed: `${order.id}:late_delivery`,
+      context:
+        `Promised: ${order.promised_delivery_time}. Actual: ${order.actual_delivery_time}. ` +
+        `Merchant: ${order.merchant_name ?? 'N/A'}.`,
       model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
     });
-    const text = completion.choices[0]?.message?.content ?? null;
 
     // Compute delay and, if delayed, store in detected_refunds
     const promised = order.promised_delivery_time ? new Date(order.promised_delivery_time) : null;
@@ -72,6 +81,16 @@ Request compensation for the delay. One short paragraph, polite but firm.`;
       : 0;
 
     if (isDelayed) {
+      await supabase
+        .from('orders')
+        .update({
+          ai_complaint: text,
+          complaint_status: 'drafted',
+          complaint_last_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id)
+        .eq('user_id', user.id);
       await supabase.from('detected_refunds').insert({
         user_id: user.id,
         order_id: order.id,
@@ -100,7 +119,7 @@ Request compensation for the delay. One short paragraph, polite but firm.`;
       status: 'submitted',
       amount_cents: order.order_value_cents,
       currency: order.currency ?? 'USD',
-      notes: 'Auto-claim from extension',
+      notes: 'Auto-claim submitted',
     });
     return NextResponse.json({ ok: true, message: 'Claim submitted' });
   }

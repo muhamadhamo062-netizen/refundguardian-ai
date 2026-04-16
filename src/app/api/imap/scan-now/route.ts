@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseClient } from '@/lib/supabase/api';
 import { createServiceRoleClient } from '@/lib/supabase/admin';
 import { ingestImapForUser } from '@/lib/server/imapCronIngest';
+import { requireUser } from '@/lib/supabase/requireUser';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,20 +30,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: envOk.error }, { status: 503 });
   }
 
-  const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.replace(/^Bearer\s+/i, '');
-  if (!token) {
-    return NextResponse.json({ success: false, error: 'Missing Authorization token' }, { status: 401 });
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
   }
-
-  const supabase = createSupabaseClient(token);
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError || !user) {
-    return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 });
-  }
+  const { user } = auth;
 
   const admin = createServiceRoleClient();
   if (!admin) {

@@ -335,7 +335,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-emerald-200/70">
-                  Automatically detected from extension + timestamps.
+                  Automatically detected from inbox sync + timestamps.
                 </p>
               </div>
 

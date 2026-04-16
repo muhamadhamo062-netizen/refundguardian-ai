@@ -50,8 +50,7 @@ export function SignupForm() {
         </Link>
         <h1 className="mt-6 text-2xl font-bold text-white">Create account</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Enter your email and a password to get started. New accounts include a free trial window (no
-          subscription charge until you choose a paid plan in the dashboard).
+          Enter your email and a password to get started.
         </p>
       </div>
 

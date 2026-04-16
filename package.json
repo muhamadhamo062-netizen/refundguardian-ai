@@ -20,13 +20,14 @@
     "imapflow": "^1.2.18",
     "mailparser": "^3.9.6",
     "next": "14.2.35",
+    "nodemailer": "^7.0.6",
     "openai": "^6.27.0",
     "react": "^18",
-    "react-dom": "^18",
-    "stripe": "^17.7.0"
+    "react-dom": "^18"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",

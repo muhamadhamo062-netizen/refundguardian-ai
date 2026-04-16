@@ -22,7 +22,7 @@ export function Hero() {
             href="/signup"
             className="inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-8 py-3.5 text-sm sm:text-base font-semibold text-[var(--background)] shadow-lg hover:bg-[var(--accent-muted)] transition-all hover:scale-[1.02]"
           >
-            Start free trial
+            Create account
           </Link>
           <Link
             href="/login"
@@ -32,8 +32,7 @@ export function Hero() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-[var(--muted)] max-w-md mx-auto">
-          Free trial includes a limited AI scan on recent orders. Upgrade via Stripe when you want full
-          automation — never charged without explicit checkout.
+          Connect Gmail once. We store your app password encrypted so background scans can run automatically.
         </p>
       </div>
     </section>

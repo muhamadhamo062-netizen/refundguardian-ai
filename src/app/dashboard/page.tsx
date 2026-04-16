@@ -7,14 +7,8 @@ import { ScanButton } from '@/components/dashboard/ScanButton';
 import { RecoveredRefundOpportunities } from '@/components/dashboard/RecoveredRefundOpportunities';
 import { ConnectionSetupSection } from '@/components/dashboard/ConnectionSetupSection';
 import { AmazonOrdersDashboard } from '@/components/dashboard/AmazonOrdersDashboard';
-import { SubscriptionStatusBar } from '@/components/dashboard/SubscriptionStatusBar';
-import { FirstRecoveryBanner } from '@/components/dashboard/FirstRecoveryBanner';
 import { CompensationPipelineCard } from '@/components/dashboard/CompensationPipelineCard';
-import type { UserBillingRow } from '@/lib/billing/plan';
-import { isFreeTrialAiLocked, isProSubscriber, maxAiOrdersForUser } from '@/lib/billing/plan';
 import { buildActivityFeedItems } from '@/lib/dashboard/buildActivityFeedItems';
-import { isExtensionSyncTableMissingError } from '@/lib/supabase/dbErrors';
-import { Migration014Banner } from '@/components/dashboard/Migration014Banner';
 import { DashboardHealthStrip } from '@/components/dashboard/DashboardHealthStrip';
 import { AiPriorityEngineTable } from '@/components/shared/AiPriorityEngineTable';
 import { Deferred } from '@/components/shared/Deferred';
@@ -51,17 +45,13 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: billingRow } = user
+  const { data: userRow } = user
     ? await supabase
         .from('users')
-        .select(
-          'plan, subscription_status, trial_ends_at, autonomous_mode_enabled, stripe_customer_id, stripe_subscription_id, free_trial_initial_scan_completed_at, trial_used, last_trial_scan_potential_cents'
-        )
+        .select('autonomous_mode_enabled')
         .eq('id', user.id)
         .maybeSingle()
     : { data: null };
-
-  const billingProfile: UserBillingRow | null = billingRow;
 
   const uid = user?.id;
 
@@ -97,11 +87,6 @@ export default async function DashboardPage() {
         .select('id, merchant_name, order_id, provider, created_at')
         .order('created_at', { ascending: false })
         .limit(20),
-      supabase
-        .from('extension_sync_events')
-        .select('id, event_type, order_count, created_at')
-        .order('created_at', { ascending: false })
-        .limit(15),
     ]),
     uid
       ? Promise.all([
@@ -134,7 +119,6 @@ export default async function DashboardPage() {
     { data: claims },
     { data: opportunities },
     { data: recentOrders },
-    { data: extensionSyncs },
   ] = mainData;
 
   const [deliveryOrderCountRes, rideOrderCountRes, foodOrderCountRes] = orderCountsData;
@@ -206,10 +190,10 @@ export default async function DashboardPage() {
     return p.includes('eats') || p.includes('doordash') || p.includes('food');
   });
 
-  /** Extension + IMAP write to `orders`; legacy email flow may only fill `receipts`. Use the higher of the two so the first client sees real “orders scanned” counts. */
-  const deliveryOrdersScanned = Math.max(deliveryReceipts.length, deliveryOrderCount);
-  const rideOrdersScanned = Math.max(rideReceipts.length, rideOrderCount);
-  const orderCompOrdersScanned = Math.max(orderReceipts.length, foodOrderCount);
+  /** Gmail IMAP sync writes to `orders`; receipts are legacy. Prefer orders-based counters. */
+  const deliveryOrdersScanned = deliveryOrderCount;
+  const rideOrdersScanned = rideOrderCount;
+  const orderCompOrdersScanned = foodOrderCount;
 
   const ordersForFeed = (recentOrders ?? []).filter((o) => {
     const oid = o.order_id != null ? String(o.order_id) : '';
@@ -229,7 +213,6 @@ export default async function DashboardPage() {
       delay_minutes: o.delay_minutes,
       created_at: o.created_at,
     })),
-    extensionSyncs: extensionSyncs ?? [],
   });
 
   const refundHistoryRows = safeRefunds.map((r) => ({
@@ -241,20 +224,12 @@ export default async function DashboardPage() {
     status: 'Completed',
   }));
 
-  const isPro = isProSubscriber(billingProfile);
-
-  const { error: extSyncProbeErr } = await supabase
-    .from('extension_sync_events')
-    .select('id')
-    .limit(1);
-  const migration014Missing = !!(
-    extSyncProbeErr && isExtensionSyncTableMissingError(extSyncProbeErr)
-  );
+  const isPro = true;
+  const autonomousModeEnabled = Boolean(userRow && (userRow as { autonomous_mode_enabled?: boolean }).autonomous_mode_enabled);
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-[var(--background)]">
+    <div className="min-h-screen min-w-0 bg-[var(--background)]">
       <div className="mb-4 space-y-3">
-        <Migration014Banner show={migration014Missing} />
         <DashboardHealthStrip />
       </div>
       {/* Header */}
@@ -272,43 +247,23 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {user ? (
-        <div className="mt-5">
-          <FirstRecoveryBanner
-            userId={user.id}
-            totalCents={totalRecoveredCents}
-            refundCount={safeRefunds.length}
-            isPro={isPro}
-          />
-        </div>
-      ) : null}
-
       <section className="mt-6" aria-labelledby="dashboard-setup-heading">
         <h2 id="dashboard-setup-heading" className="sr-only">
-          Connect orders — extension or Gmail
+          Connect orders — Gmail
         </h2>
         <p className="mb-2 text-xs font-medium text-zinc-400">
-          On <strong className="font-semibold text-zinc-300">mobile</strong>, connect Gmail with an App Password. On{' '}
-          <strong className="font-semibold text-zinc-300">desktop</strong>, use the Chrome extension. Both save under your
-          same account so orders stay in one place.
+          Connect Gmail once using a Google App Password. We encrypt and save it for your account so background scans can
+          run automatically — no repeated prompts.
         </p>
-        <ConnectionSetupSection variant="dashboard" />
+        <ConnectionSetupSection />
       </section>
 
       <Deferred>
         <CompensationPipelineCard />
       </Deferred>
 
-      <div id="plan">
-        <Deferred>
-          <SubscriptionStatusBar initialProfile={billingProfile} />
-        </Deferred>
-      </div>
-
       <section className="mt-8 sm:mt-10">
-        <Deferred>
-          <AiPriorityEngineTable />
-        </Deferred>
+        <AiPriorityEngineTable />
       </section>
 
       <section className="mt-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)]/60 px-4 py-4 sm:grid-cols-2">
@@ -330,10 +285,10 @@ export default async function DashboardPage() {
         }
       >
         <AmazonOrdersDashboard
-          maxAiOrdersPerBatch={maxAiOrdersForUser(billingProfile)}
+          maxAiOrdersPerBatch={200}
           isPro={isPro}
-          serverAutonomousMode={Boolean(billingProfile?.autonomous_mode_enabled)}
-          trialScanLocked={isFreeTrialAiLocked(billingProfile)}
+          serverAutonomousMode={autonomousModeEnabled}
+          trialScanLocked={false}
         />
       </Deferred>
 

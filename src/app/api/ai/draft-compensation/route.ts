@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { generateStructuredComplaint } from '@/lib/ai/complaintGenerator';
+import type { RefundPlatform } from '@/lib/refundPriorityEngine';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -76,9 +77,7 @@ function issueLabel(i: ManualIssueKey): string {
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
-  if (!apiKey) {
+  if (!process.env.OPENAI_API_KEY?.trim()) {
     return NextResponse.json(
       { ok: false, error: 'AI drafting not configured (OPENAI_API_KEY missing)' },
       { status: 503 }
@@ -105,39 +104,18 @@ export async function POST(req: Request) {
     );
   }
 
-  const issuesText = manualIssues.map(issueLabel).join(', ');
+  const issues = manualIssues.map(issueLabel);
   const pLabel = platformLabel(platform);
 
-  const system = `You write short, professional customer support messages for US consumers.
-You never claim guaranteed refunds. You never mention AI or internal systems.
-Output ONLY the final message text (no markdown, no quotes).`;
-
-  const user = `Write a concise message for ${pLabel} support.
-Context:
-- The platform automatically handles delay detection separately; do NOT mention late delivery/trip delay.
-- The user selected these issues: ${issuesText}.
-Requirements:
-- 5–9 sentences total.
-- Polite, confident, and specific.
-- Ask for an appropriate adjustment/refund/credit based on policy.
-- Include a short bullet list of the issues (2–4 bullets).
-- End with a simple closing and the user's name placeholder: "[Your Name]".`;
-
   try {
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model,
-      temperature: 0.2,
-      max_tokens: 280,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+    const text = await generateStructuredComplaint({
+      platform: platform as RefundPlatform,
+      issues,
+      toneSeed: `${platform}:${manualIssues.join(',')}`,
+      context: `Manual issues only (do not argue late delivery / trip delay — handled separately): ${issues.join(
+        '; '
+      )}. Platform label: ${pLabel}.`,
     });
-    const text = completion.choices[0]?.message?.content?.trim() || '';
-    if (!text) {
-      return NextResponse.json({ ok: false, error: 'Empty AI response' }, { status: 502 });
-    }
     return NextResponse.json({ ok: true, draft: text });
   } catch (e) {
     console.error('[api/ai/draft-compensation]', e);

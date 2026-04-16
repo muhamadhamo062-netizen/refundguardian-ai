@@ -9,7 +9,6 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 const links = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/dashboard/refund-history', label: 'Compensation history' },
-  { href: '/pricing', label: 'Pricing' },
 ];
 
 export function DashboardNav() {
@@ -17,7 +16,7 @@ export function DashboardNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="min-w-0 overflow-x-hidden border-b border-[var(--border)] bg-[var(--background)]">
+    <header className="min-w-0 border-b border-[var(--border)] bg-[var(--background)]">
       <nav className="mx-auto flex h-16 max-w-7xl min-w-0 items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
         <Link
           href="/dashboard"
@@ -56,7 +55,7 @@ export function DashboardNav() {
           <button
             type="button"
             onClick={() => setMobileOpen((o) => !o)}
-            className="md:hidden rounded-lg p-2 text-[var(--foreground)] hover:bg-[var(--card)]"
+            className="md:hidden min-h-[44px] min-w-[44px] rounded-lg p-2 text-[var(--foreground)] hover:bg-[var(--card)]"
             aria-label="Toggle menu"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,3 +98,4 @@ export function DashboardNav() {
     </header>
   );
 }
+

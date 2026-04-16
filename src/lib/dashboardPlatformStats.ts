@@ -36,12 +36,10 @@ export async function fetchUsPlatformStats(): Promise<UsPlatformStats | null> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session?.access_token) return null;
+  if (!session) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const res = await fetch(`${origin}/api/orders?limit=200`, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
+  const res = await fetch(`${origin}/api/orders?limit=200`, { cache: 'no-store' });
   if (!res.ok) {
     if (res.status === 503) {
       const json = (await res.json().catch(() => null)) as { db?: string } | null;

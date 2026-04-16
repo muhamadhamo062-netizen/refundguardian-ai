@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { inferIssueTypeFromRow, inferPlatformFromProvider } from '@/lib/refundPriorityEngine';
 import { DASHBOARD_AI_SCAN_ORDER_LIMIT } from '@/lib/dashboard/scanOrderLimit';
 
@@ -39,19 +38,7 @@ export function ScanButton() {
     setMessage(null);
     setError(null);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        setError('Session expired. Sign in again.');
-        return;
-      }
-
-      const res = await fetch('/api/orders?limit=120', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`/api/orders?limit=${DASHBOARD_AI_SCAN_ORDER_LIMIT}`, { cache: 'no-store' });
       const body = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         orders?: OrderApiRow[];
@@ -68,7 +55,7 @@ export function ScanButton() {
       );
 
       if (rows.length === 0) {
-        setError('No orders to analyze. Sync orders with the extension first.');
+        setError('No orders to analyze yet. Connect Gmail and run a scan first.');
         return;
       }
 
@@ -82,12 +69,12 @@ export function ScanButton() {
         }),
         amount: parsePriceToAmount(r.price),
         order_date: r.date,
+        product_name: r.productName,
       }));
 
       const aiRes = await fetch('/api/refund-decision', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ orders }),
@@ -97,13 +84,7 @@ export function ScanButton() {
         ok?: boolean;
         error?: string;
         decisions?: unknown[];
-        upgrade_required?: boolean;
       };
-
-      if (aiRes.status === 403 && aiBody.upgrade_required) {
-        router.push('/upgrade');
-        return;
-      }
 
       if (!aiRes.ok || aiBody.ok !== true) {
         setError(typeof aiBody.error === 'string' ? aiBody.error : 'AI scan failed.');

@@ -11,19 +11,18 @@ export function formatUsdFromCents(cents: number): string {
 export const US_COPY = {
   firstRecoveryTitle: "You're on the board — we recorded compensation for you",
   firstRecoveryBodyOne: (amount: string) =>
-    `We've logged your first compensation credit: ${amount} total tracked in RefundGuardian. Keep the extension connected and your dashboard open so we can keep scanning for more.`,
+    `We've logged your first compensation credit: ${amount} total tracked in RefundGuardian. Keep inbox sync enabled so background scans can keep finding more.`,
   firstRecoveryBodyMany: (total: string, count: number) =>
-    `So far we've recorded ${total} across ${count} compensation credit${count === 1 ? '' : 's'}. That's real money we're tracking — upgrade to Pro for deeper automation and higher scan limits.`,
+    `So far we've recorded ${total} across ${count} compensation credit${count === 1 ? '' : 's'}. That's real money we're tracking — keep syncing to maintain coverage.`,
   disclaimerShort:
     'RefundGuardian tracks credits and delays based on data we can access. We do not guarantee payment from any merchant or platform; outcomes depend on their policies and your eligibility.',
-  ctaUpgrade: 'Upgrade to Pro',
   ctaViewHistory: 'View refund history',
   dismiss: 'Dismiss',
 
   pipelineTitle: 'How automatic tracking works',
   pipelineBody: [
-    'After you install the extension and connect your session, we sync your token in the background while this dashboard stays open.',
-    'Open each merchant’s order page once (seed tabs) so the extension can read your history — then new orders are picked up as you use those accounts and pages refresh.',
+    'After you connect Gmail using an App Password, we securely sync order emails into your account.',
+    'Background scans keep running automatically after the one-time setup — no repeated prompts.',
     'Delivery times and delays are evaluated when the platform exposes enough data — not every order includes a guaranteed timestamp.',
   ],
   openAiTitle: 'Claim letters & OpenAI (optional pipeline)',

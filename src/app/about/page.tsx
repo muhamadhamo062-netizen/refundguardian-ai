@@ -22,9 +22,8 @@ export default function AboutPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-semibold text-white">What we do</h2>
             <p>
-              We organize the order signals you choose to connect (desktop extension) and optional email-based
-              scanning (mobile) to highlight where you may be owed money. We then generate clear, audit-friendly
-              details and guidance so you can take action quickly.
+              We organize the order signals you choose to connect (Gmail inbox sync) to highlight where you may be owed
+              money. We then generate clear, audit-friendly details and guidance so you can take action quickly.
             </p>
           </section>
 

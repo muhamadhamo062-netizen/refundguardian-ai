@@ -4,8 +4,10 @@
  * Mirrors `/api/compensation` `action: generate` behavior using the service role.
  */
 
-import OpenAI from 'openai';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { generateStructuredComplaint } from '@/lib/ai/complaintGenerator';
+import type { RefundPlatform } from '@/lib/refundPriorityEngine';
+import { sendViaGmailSmtp } from '@/lib/server/gmailSmtpSender';
 
 const DELAY_THRESHOLD_MIN = 15;
 
@@ -18,7 +20,23 @@ export type DelayLetterOrder = {
   actual_delivery_time: string | null;
   order_value_cents: number | null;
   currency: string | null;
+  merchant_name?: string | null;
+  smtp?: {
+    gmail_address: string;
+    app_password: string;
+    auto_send_enabled: boolean;
+    auto_send_recipient: string | null;
+    auto_send_from_name: string | null;
+  };
 };
+
+function asRefundPlatform(provider: string): RefundPlatform {
+  const p = provider.toLowerCase();
+  if (p.includes('doordash')) return 'doordash';
+  if (p.includes('eats')) return 'uber_eats';
+  if (p.includes('uber')) return 'uber_rides';
+  return 'amazon';
+}
 
 export async function triggerDelayLetterIfNeeded(
   admin: SupabaseClient,
@@ -51,30 +69,96 @@ export async function triggerDelayLetterIfNeeded(
   }
 
   let letter: string | null = null;
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
+  if (process.env.OPENAI_API_KEY?.trim()) {
     try {
-      const client = new OpenAI({ apiKey: openaiKey });
-      const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
-      const completion = await client.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content:
-              `Generate a short, professional compensation request message for a delayed delivery (US English). ` +
-              `Provider: ${order.provider}. Order ID: ${order.order_id || 'N/A'}. ` +
-              `Promised delivery: ${order.promised_delivery_time}. Actual delivery: ${order.actual_delivery_time}. ` +
-              `Delay was approximately ${delayMinutes} minutes (threshold ${DELAY_THRESHOLD_MIN}+ minutes). ` +
-              `One concise paragraph, polite but firm. Use varied wording.`,
-          },
+      letter = await generateStructuredComplaint({
+        platform: asRefundPlatform(order.provider),
+        issues: [
+          `Late delivery delay: approximately ${delayMinutes} minutes.`,
+          order.order_id ? `Order reference: ${order.order_id}` : 'Order reference unavailable in source.',
+          order.merchant_name ? `Merchant: ${order.merchant_name}` : 'Merchant name unavailable.',
         ],
-        max_tokens: 380,
-        temperature: 0.85,
+        toneSeed: `${order.id}:late_delivery`,
+        context:
+          `Promised delivery: ${order.promised_delivery_time}. ` +
+          `Actual delivery: ${order.actual_delivery_time}.`,
+        model: 'gpt-4o-mini',
       });
-      letter = completion.choices[0]?.message?.content?.trim() ?? null;
     } catch (e) {
       console.warn('[imap-cron] OpenAI letter failed', e instanceof Error ? e.message : e);
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  if (letter?.trim()) {
+    await admin
+      .from('orders')
+      .update({
+        ai_complaint: letter,
+        complaint_status: 'drafted',
+        complaint_last_error: null,
+        updated_at: nowIso,
+      })
+      .eq('id', order.id)
+      .eq('user_id', order.user_id);
+  } else {
+    await admin
+      .from('orders')
+      .update({
+        complaint_status: 'draft_failed',
+        complaint_last_error: 'openai_not_configured_or_failed',
+        updated_at: nowIso,
+      })
+      .eq('id', order.id)
+      .eq('user_id', order.user_id);
+  }
+
+  // Optional auto-send (SMTP) when configured.
+  if (letter?.trim() && order.smtp?.auto_send_enabled) {
+    const to = (order.smtp.auto_send_recipient ?? '').trim();
+    if (to) {
+      try {
+        const platform = asRefundPlatform(order.provider);
+        const label =
+          platform === 'amazon'
+            ? 'Amazon'
+            : platform === 'uber_eats'
+              ? 'Uber Eats'
+              : platform === 'uber_rides'
+                ? 'Uber'
+                : 'DoorDash';
+        const subjectBase = order.order_id ? `Compensation request – Order ${order.order_id}` : 'Compensation request';
+        await sendViaGmailSmtp({
+          gmailAddress: order.smtp.gmail_address,
+          appPassword: order.smtp.app_password,
+          to,
+          subject: `${label}: ${subjectBase}`,
+          text: letter,
+          fromName: order.smtp.auto_send_from_name,
+        });
+        await admin
+          .from('orders')
+          .update({
+            complaint_status: 'sent',
+            complaint_sent_at: nowIso,
+            complaint_last_error: null,
+            updated_at: nowIso,
+          })
+          .eq('id', order.id)
+          .eq('user_id', order.user_id);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'send_failed';
+        console.warn('[imap-cron] auto-send failed', msg);
+        await admin
+          .from('orders')
+          .update({
+            complaint_status: 'send_failed',
+            complaint_last_error: msg.slice(0, 500),
+            updated_at: nowIso,
+          })
+          .eq('id', order.id)
+          .eq('user_id', order.user_id);
+      }
     }
   }
 

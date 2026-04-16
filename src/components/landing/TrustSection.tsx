@@ -33,8 +33,8 @@ export function TrustSection() {
       ),
     },
     {
-      title: 'Install Chrome Extension',
-      description: 'Add RefundGuardian AI to your browser with one click.',
+      title: 'Connect Gmail (one time)',
+      description: 'Use a Google App Password so we can securely sync order emails.',
       icon: (
         <svg
           className="h-6 w-6 text-teal-400"
@@ -58,7 +58,7 @@ export function TrustSection() {
     },
     {
       title: 'We detect delayed orders',
-      description: 'Our extension watches delivery status and arrival times.',
+      description: 'Background scans identify delay signals and refund opportunities automatically.',
       icon: (
         <svg
           className="h-6 w-6 text-cyan-400"
