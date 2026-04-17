@@ -59,7 +59,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Database tables
 
 - `users` – Profile (synced from Supabase Auth)
-- `orders` – Normalized orders (extension + API); required for `/api/orders` and dashboard DB sync
+- `orders` – Normalized orders (Gmail IMAP sync + API); required for `/api/orders` and dashboard DB sync
 - `receipts` – Orders/deliveries from connected sources
 - `claims` – Refund claims filed by the system
 - `refund_history` – Completed refunds for reporting

@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+/**
+ * Session-scoped Supabase (anon key + cookies). Used for `auth.getUser()` in route handlers.
+ * Persisting `imap_app_credentials` must use the **service role** client from `@/lib/supabase/admin`
+ * (`createServiceRoleClient`) so inserts/updates bypass RLS — do not use this client for that table.
+ */
 export function createClient() {
   const cookieStore = cookies();
 

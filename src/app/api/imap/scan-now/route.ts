@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
+import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/admin';
 import { mapImapErrorToUserMessage } from '@/lib/server/gmailImapHelpers';
 import { ingestImapForUser } from '@/lib/server/imapCronIngest';
@@ -33,11 +34,7 @@ export async function POST(request: Request) {
 
   const authHeader = request.headers.get('Authorization');
   const token = authHeader?.replace(/^Bearer\s+/i, '');
-  if (!token) {
-    return NextResponse.json({ success: false, error: 'Missing Authorization token' }, { status: 401 });
-  }
-
-  const supabase = createSupabaseClient(token);
+  const supabase = token ? createSupabaseClient(token) : createClient();
   const {
     data: { user },
     error: userError,

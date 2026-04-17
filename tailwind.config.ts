@@ -17,16 +17,10 @@ const config: Config = {
         border: 'var(--border)',
       },
       fontFamily: {
-        sans: [
-          'system-ui',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'Segoe UI',
-          'Roboto',
-          'sans-serif',
-        ],
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       animation: {
+        'rg-fade-in': 'rg-fade-in 0.55s ease-out both',
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
         /** Run AI Scan button — shimmer sweep across the pill */
         'rg-scan-shimmer': 'rg-scan-shimmer 1.85s ease-in-out infinite',
@@ -34,6 +28,10 @@ const config: Config = {
         'rg-scan-ring': 'rg-scan-ring 2.2s ease-in-out infinite',
       },
       keyframes: {
+        'rg-fade-in': {
+          from: { opacity: '0', transform: 'translateY(10px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
         'pulse-soft': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.85' },

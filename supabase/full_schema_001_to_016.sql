@@ -252,23 +252,6 @@ CREATE INDEX IF NOT EXISTS idx_compensation_events_user_created
   ON public.compensation_events(user_id, created_at DESC);
 
 -- -----------------------------------------------------------------------------
--- 014 — extension_sync_events
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.extension_sync_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL,
-  order_count INTEGER NOT NULL DEFAULT 0 CHECK (order_count >= 0),
-  meta JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_extension_sync_user_created
-  ON public.extension_sync_events(user_id, created_at DESC);
-
-COMMENT ON TABLE public.extension_sync_events IS 'Extension-originated sync notifications (e.g. after POST /api/orders batch).';
-
--- -----------------------------------------------------------------------------
 -- 015 — imap_app_credentials
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.imap_app_credentials (
@@ -295,7 +278,6 @@ ALTER TABLE public.detected_refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gmail_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.compensation_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.extension_sync_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.imap_app_credentials ENABLE ROW LEVEL SECURITY;
 
 -- Policies (drop if re-running)
@@ -362,15 +344,6 @@ CREATE POLICY "Users select own compensation_events"
   FOR SELECT
   USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users read own extension sync events" ON public.extension_sync_events;
-DROP POLICY IF EXISTS "Users insert own extension sync events" ON public.extension_sync_events;
-CREATE POLICY "Users read own extension sync events"
-  ON public.extension_sync_events FOR SELECT
-  USING (auth.uid() = user_id);
-CREATE POLICY "Users insert own extension sync events"
-  ON public.extension_sync_events FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can read own imap_app_credentials" ON public.imap_app_credentials;
 DROP POLICY IF EXISTS "Users can insert own imap_app_credentials" ON public.imap_app_credentials;
 DROP POLICY IF EXISTS "Users can update own imap_app_credentials" ON public.imap_app_credentials;
@@ -405,7 +378,6 @@ GRANT ALL ON public.gmail_connections TO authenticated;
 GRANT ALL ON public.automation_events TO authenticated;
 GRANT ALL ON TABLE public.compensation_events TO authenticated;
 GRANT ALL ON TABLE public.compensation_events TO service_role;
-GRANT ALL ON public.extension_sync_events TO authenticated;
 GRANT ALL ON public.imap_app_credentials TO authenticated;
 
 -- =============================================================================

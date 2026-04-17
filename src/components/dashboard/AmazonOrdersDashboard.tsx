@@ -2,7 +2,6 @@
 
 // Mobile update v2 - 2026-04-11T18:30:00Z — audit: text-base + sm:text-sm for body UI
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -27,6 +26,8 @@ import {
   type AutoRefundPrefs,
 } from '@/lib/autoRefundPreferences';
 import { PRO_AI_ORDER_LIMIT } from '@/lib/billing/plan';
+import { UPGRADE_PRICE_STEAL_DISPLAY } from '@/lib/refyndraCoreBusiness';
+import { DASHBOARD_ORDERS_REFRESH_EVENT } from '@/lib/dashboard/ordersRefresh';
 import { PlatformOrderIcon } from '@/components/dashboard/PlatformOrderIcon';
 
 export type UnifiedOrderRow = {
@@ -37,76 +38,12 @@ export type UnifiedOrderRow = {
   date: string;
   backendStatus: 'ok' | 'failed' | 'pending';
   extractedAt: string;
-  source: 'database' | 'extension';
+  source: 'database';
   /** Present when row comes from GET /api/orders (database) */
   provider?: string;
-  /** Optional line from extension extraction (used for AI issue inference) */
+  /** Optional status line from synced order data (used for AI issue inference) */
   status?: string;
 };
-
-type ExtensionSnapshot = {
-  id?: string;
-  orders?: Array<{
-    orderId?: string;
-    productTitle?: string;
-    price?: string;
-    date?: string;
-    status?: string;
-  }>;
-  url?: string;
-  extractedAt?: string;
-  backendStatus?: string;
-  receivedAt?: string;
-};
-
-function normalizeBackendStatus(s: string | undefined): 'ok' | 'failed' | 'pending' {
-  if (s === 'ok') return 'ok';
-  if (s === 'failed') return 'failed';
-  return 'pending';
-}
-
-function flattenExtensionSnapshots(
-  snapshots: ExtensionSnapshot[] | null | undefined
-): UnifiedOrderRow[] {
-  if (!Array.isArray(snapshots)) return [];
-  const out: UnifiedOrderRow[] = [];
-  for (const snap of snapshots) {
-    const orders = snap.orders || [];
-    const st = normalizeBackendStatus(snap.backendStatus);
-    const extAt = snap.extractedAt || snap.receivedAt || '';
-    for (let i = 0; i < orders.length; i++) {
-      const o = orders[i];
-      const oid = o.orderId?.trim() || '';
-      out.push({
-        id: `ext-${snap.id ?? 'snap'}-${oid || i}-${i}`,
-        orderId: oid || '—',
-        productName: o.productTitle?.trim() || '—',
-        price: o.price?.trim() || '—',
-        date: o.date?.trim() || '—',
-        backendStatus: st,
-        extractedAt: extAt,
-        source: 'extension',
-        provider: 'amazon',
-        status: o.status,
-      });
-    }
-  }
-  return out;
-}
-
-function mergeRows(db: UnifiedOrderRow[], ext: UnifiedOrderRow[]): UnifiedOrderRow[] {
-  const seen = new Set<string>();
-  const merged: UnifiedOrderRow[] = [];
-  for (const r of db) {
-    merged.push(r);
-    if (r.orderId && r.orderId !== '—') seen.add(r.orderId);
-  }
-  for (const r of ext) {
-    if (r.orderId && r.orderId !== '—' && seen.has(r.orderId)) continue;
-    merged.push(r);
-  }
-  return merged;
-}
 
 type FilterMode = 'all' | 'success' | 'failed';
 
@@ -125,7 +62,15 @@ function isOrdersTableMissingMessage(msg: string | undefined): boolean {
   return m.includes('orders table missing') || (m.includes('does not exist') && m.includes('orders'));
 }
 
-/** Client-side extension of AI output; `manual_required` is optional on API payloads (UI only). */
+/** Always show a clear USD-style amount in the orders table. */
+function formatOrderPriceDisplay(price: string | undefined): string {
+  const p = (price ?? '—').trim();
+  if (!p || p === '—') return '—';
+  if (p.startsWith('$')) return p;
+  return `$${p}`;
+}
+
+/** Augments AI output; `manual_required` is optional on API payloads (UI only). */
 type AiDecisionRow = RefundDecisionOutput & { manual_required?: boolean };
 
 export type AmazonOrdersDashboardProps = {
@@ -144,7 +89,6 @@ export function AmazonOrdersDashboard({
   serverAutonomousMode = false,
   trialScanLocked = false,
 }: AmazonOrdersDashboardProps = {}) {
-  const router = useRouter();
   const [rows, setRows] = useState<UnifiedOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,17 +96,17 @@ export function AmazonOrdersDashboard({
   const [filter, setFilter] = useState<FilterMode>('all');
   // Default off: avoids aggressive polling that can make the dashboard feel laggy on navigation.
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [extensionHint, setExtensionHint] = useState<string | null>(null);
   const [aiById, setAiById] = useState<Record<string, AiDecisionRow>>({});
   const [autoPrefs, setAutoPrefs] = useState<AutoRefundPrefs>(defaultAutoRefundPrefs);
   const [activityLog, setActivityLog] = useState<AutoRefundActivityEntry[]>([]);
   const [showActivity, setShowActivity] = useState(false);
   const [aiPlanHint, setAiPlanHint] = useState<string | null>(null);
-  const [trialLockedClient, setTrialLockedClient] = useState(false);
+  const [copiedRowId, setCopiedRowId] = useState<string | null>(null);
+  const [clientTrialLocked, setClientTrialLocked] = useState(false);
   const autoAssistLoggedRef = useRef<Set<string>>(new Set());
   const serverAutomationLoggedRef = useRef<Set<string>>(new Set());
 
-  const aiLocked = trialScanLocked || trialLockedClient;
+  const aiLocked = trialScanLocked || clientTrialLocked;
 
   useEffect(() => {
     setAutoPrefs(loadAutoRefundPrefs());
@@ -194,98 +138,12 @@ export function AmazonOrdersDashboard({
     }
   }, []);
 
-  const requestExtensionStorage = useCallback(
-    async (options?: { suppressExtensionHints?: boolean }) => {
-      if (typeof window === 'undefined') return [];
-      const suppressExtensionHints = options?.suppressExtensionHints === true;
-
-      const isLocal =
-        typeof window !== 'undefined' &&
-        /localhost|127\.0\.0\.1/.test(window.location.hostname);
-
-      const once = () =>
-        new Promise<{
-          bridgeReceived: boolean;
-          payload: ExtensionSnapshot[] | null | undefined;
-          error?: string;
-        }>((resolve) => {
-          const t = window.setTimeout(
-            () => resolve({ bridgeReceived: false, payload: null }),
-            4000
-          );
-          function onMessage(e: MessageEvent) {
-            if (e.data?.type !== 'RG_AMAZON_ORDERS_RESPONSE') return;
-            window.clearTimeout(t);
-            window.removeEventListener('message', onMessage);
-            resolve({
-              bridgeReceived: Boolean(e.data.bridge),
-              payload: e.data.payload as ExtensionSnapshot[] | null | undefined,
-              error:
-                typeof e.data.error === 'string' ? e.data.error : undefined,
-            });
-          }
-          window.addEventListener('message', onMessage);
-          window.postMessage({ type: 'RG_REQUEST_AMAZON_ORDERS' }, '*');
-        });
-
-      let result = await once();
-      if (!result.bridgeReceived && isLocal) {
-        await new Promise((r) => setTimeout(r, 500));
-        result = await once();
-      }
-      if (!result.bridgeReceived && isLocal) {
-        await new Promise((r) => setTimeout(r, 600));
-        result = await once();
-      }
-
-      // Content script answered: empty storage is valid — do not show "storage not detected"
-      if (result.bridgeReceived) {
-        if (!suppressExtensionHints) {
-          if (result.error === 'no_extension_storage') {
-            setExtensionHint('Refyndra couldn’t connect — refresh this page with the extension turned on.');
-          } else if (result.error) {
-            setExtensionHint(result.error);
-          } else {
-            setExtensionHint(null);
-          }
-        } else {
-          setExtensionHint(null);
-        }
-        const arr = Array.isArray(result.payload) ? result.payload : [];
-        return flattenExtensionSnapshots(arr);
-      }
-
-      // No answer from extension — only nag when DB is healthy (otherwise DB warning is the real fix)
-      if (isLocal && !suppressExtensionHints) {
-        setExtensionHint(
-          (h) =>
-            h ??
-            'Add the Refyndra browser extension, then refresh this page so we can sync your orders.'
-        );
-      }
-      return [];
-    },
-    []
-  );
-
   const load = useCallback(async () => {
     setError(null);
     setWarning(null);
-    setExtensionHint(null);
     setLoading(true);
     let dbRows: UnifiedOrderRow[] = [];
     let apiMessage: string | null = null;
-
-    let healthDb: 'connected' | 'missing_table' | 'error' | 'unknown' = 'unknown';
-    try {
-      const hr = await fetch('/api/health', { cache: 'no-store' });
-      const hb = (await hr.json().catch(() => ({}))) as { db?: string };
-      if (hb.db === 'connected' || hb.db === 'missing_table' || hb.db === 'error') {
-        healthDb = hb.db;
-      }
-    } catch {
-      healthDb = 'error';
-    }
 
     try {
       const supabase = createClient();
@@ -311,7 +169,7 @@ export function AmazonOrdersDashboard({
       };
 
       if (res.status === 401) {
-        apiMessage = body.error || 'Sign in to load your saved orders. Extension data may still appear below.';
+        apiMessage = body.error || 'Sign in to load your saved orders.';
       } else if (body.ok === false || !res.ok) {
         apiMessage =
           body.error || (res.status === 503 ? 'We’re updating your account. Try again in a moment.' : res.statusText);
@@ -326,42 +184,40 @@ export function AmazonOrdersDashboard({
       apiMessage = e instanceof Error ? e.message : 'Failed to load orders';
     }
 
-    let extRows: UnifiedOrderRow[] = [];
     try {
-      extRows = await requestExtensionStorage({
-        suppressExtensionHints:
-          healthDb === 'missing_table' ||
-          isOrdersTableMissingMessage(apiMessage ?? undefined),
-      });
-    } catch {
-      /* ignore — chrome.storage only via extension bridge */
-    }
+      setRows(dbRows);
 
-    const merged = mergeRows(dbRows, extRows);
-    setRows(merged);
-
-    if (merged.length > 0 && apiMessage) {
-      if (isOrdersTableMissingMessage(apiMessage)) {
-        setWarning(null);
-        setError(null);
-      } else {
-        setWarning(apiMessage);
-        setError(null);
+      if (dbRows.length > 0 && apiMessage) {
+        if (isOrdersTableMissingMessage(apiMessage)) {
+          setWarning(null);
+          setError(null);
+        } else {
+          setWarning(apiMessage);
+          setError(null);
+        }
+      } else if (apiMessage) {
+        if (isOrdersTableMissingMessage(apiMessage)) {
+          setWarning(null);
+          setError(null);
+        } else {
+          setError(apiMessage);
+        }
       }
-    } else if (apiMessage) {
-      if (isOrdersTableMissingMessage(apiMessage)) {
-        setWarning(null);
-        setError(null);
-      } else {
-        setError(apiMessage);
-      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-  }, [requestExtensionStorage]);
+  }, []);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void load();
+    };
+    window.addEventListener(DASHBOARD_ORDERS_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(DASHBOARD_ORDERS_REFRESH_EVENT, onRefresh);
   }, [load]);
 
   useEffect(() => {
@@ -382,7 +238,7 @@ export function AmazonOrdersDashboard({
   }, [rows, filter]);
 
   useEffect(() => {
-    if (loading || filtered.length === 0 || aiLocked) return;
+    if (loading || filtered.length === 0) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -391,7 +247,6 @@ export function AmazonOrdersDashboard({
           data: { session },
         } = await supabase.auth.getSession();
         const token = session?.access_token;
-        if (!token) return;
 
         const orders = filtered.map((r) => {
           const platform = inferPlatformFromProvider(r.provider);
@@ -410,12 +265,15 @@ export function AmazonOrdersDashboard({
           };
         });
 
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
         const res = await fetch('/api/refund-decision', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          credentials: 'include',
+          headers,
           body: JSON.stringify({ orders }),
         });
         const body = (await res.json().catch(() => ({}))) as {
@@ -427,21 +285,7 @@ export function AmazonOrdersDashboard({
           ai_truncated?: boolean;
           ai_limit?: number;
           trial_scan_completed?: boolean;
-          free_trial_date_filtered?: boolean;
-          locked?: boolean;
-          upgrade_required?: boolean;
         };
-
-        if (res.status === 403 && body.locked) {
-          if (!cancelled) {
-            setTrialLockedClient(true);
-            setAiPlanHint(
-              body.error ?? 'Upgrade to Refyndra Pro for full smart scanning and savings tools.'
-            );
-          }
-          router.refresh();
-          return;
-        }
 
         if (!res.ok || body.ok !== true || !Array.isArray(body.decisions)) {
           if (!cancelled) setAiById({});
@@ -449,16 +293,15 @@ export function AmazonOrdersDashboard({
         }
 
         if (!cancelled) {
-          const parts: string[] = [];
-          if (body.ai_truncated) {
-            parts.push(
-              'Smart insights apply to your most recent orders this session. Pro includes a larger batch each time.'
-            );
-          }
-          if (!isPro && body.free_trial_date_filtered) {
-            parts.push('Your free scan focuses on recent orders so you can see value quickly.');
-          }
-          setAiPlanHint(parts.length > 0 ? parts.join(' ') : null);
+          setAiPlanHint(
+            body.ai_truncated
+              ? 'Advisory AI is applied to your highest-priority batch for this session (row limit).'
+              : null
+          );
+        }
+
+        if (!cancelled && body.trial_scan_completed) {
+          setClientTrialLocked(true);
         }
 
         const next: Record<string, AiDecisionRow> = {};
@@ -472,25 +315,25 @@ export function AmazonOrdersDashboard({
             claim_message: d.claim_message,
             confidence:
               typeof d.confidence === 'number' ? d.confidence : d.refund_score,
+            ...(typeof d.ai_complaint === 'string' && d.ai_complaint.trim()
+              ? { ai_complaint: d.ai_complaint }
+              : {}),
+            ...(d.complaint_status ? { complaint_status: d.complaint_status } : {}),
+            ...(typeof d.pro_locked === 'boolean' ? { pro_locked: d.pro_locked } : {}),
             ...(typeof raw.manual_required === 'boolean'
               ? { manual_required: raw.manual_required }
               : {}),
           };
         }
         if (!cancelled) setAiById(next);
-
-        if (!cancelled && body.trial_scan_completed) {
-          router.refresh();
-        }
-      } catch (e) {
-        console.error('[AmazonOrdersDashboard] AI refund decision', e);
+      } catch {
         if (!cancelled) setAiById({});
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [filtered, loading, maxAiOrdersPerBatch, aiLocked, isPro, router]);
+  }, [filtered, loading, maxAiOrdersPerBatch]);
 
   const scoredGrouped = useMemo(() => {
     const platformOrder: RefundPlatform[] = ['amazon', 'uber_eats', 'uber_rides', 'doordash'];
@@ -592,28 +435,48 @@ export function AmazonOrdersDashboard({
     })();
   }, [filtered, aiById, autoPrefs, serverAutonomousMode, isPro, aiLocked]);
 
-  const freeTrialPotentialUsd = useMemo(
-    () => Object.values(aiById).reduce((s, a) => s + (a.estimated_refund ?? 0), 0),
+  const platformTableLabel = (platform: RefundPlatform) =>
+    platform === 'amazon'
+      ? 'Amazon'
+      : platform === 'uber_eats'
+        ? 'Uber Eats'
+        : platform === 'uber_rides'
+          ? 'Uber Rides'
+          : 'DoorDash';
+
+  const copyAiComplaint = useCallback(
+    async (rowId: string) => {
+      const ai = aiById[rowId];
+      const text = (ai?.ai_complaint ?? ai?.claim_message ?? '').trim();
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopiedRowId(rowId);
+        window.setTimeout(() => {
+          setCopiedRowId((cur) => (cur === rowId ? null : cur));
+        }, 2000);
+      } catch {
+        /* ignore */
+      }
+    },
     [aiById]
   );
 
   const empty = !loading && filtered.length === 0;
 
   return (
-    <section className="min-w-0 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
+    <section className="w-full min-w-0 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
       <div className="flex flex-col gap-4 border-b border-[var(--border)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-2xl font-bold !leading-tight text-white sm:text-lg sm:font-semibold">Your orders</h2>
-          <p className="mt-1 !text-base !font-medium leading-relaxed text-zinc-300 sm:text-sm sm:!font-normal sm:text-[var(--muted)]">
-            Pulled from your account and the Refyndra extension. We highlight possible savings — you decide what to do
-            next.
+          <h2 className="text-[1.75rem] font-bold !leading-tight tracking-tight text-white sm:text-2xl sm:font-semibold">
+            Your orders
+          </h2>
+          <p className="mt-1 !text-base !font-medium leading-relaxed text-zinc-100 sm:text-sm sm:!font-normal sm:text-[var(--muted)]">
+            Orders synced to your account. Advisory AI ranks possible savings — you choose when to follow up.
           </p>
-          <p className="mt-2 text-base text-zinc-300 sm:text-sm sm:text-zinc-500">
-            Estimates are informational. Nothing is sent to stores until you take action.
+          <p className="mt-2 text-base text-zinc-200 sm:text-sm sm:text-zinc-500">
+            Estimates are informational. Nothing is sent to merchants until you act.
           </p>
-          {extensionHint && (
-            <p className="mt-2 text-base text-amber-300 sm:text-sm sm:text-amber-400/90">{extensionHint}</p>
-          )}
           {aiPlanHint && (
             <p className="mt-2 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-base text-violet-50 sm:text-sm sm:text-violet-100/95">
               {aiPlanHint}
@@ -623,7 +486,7 @@ export function AmazonOrdersDashboard({
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex w-full max-w-md flex-wrap gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-3 py-2">
             <span className="w-full text-base font-semibold uppercase tracking-wide text-zinc-300 sm:text-sm sm:text-zinc-500">
-              Boost savings signals (optional)
+              Savings alerts (optional)
             </span>
             {(['amazon', 'uber_eats', 'uber_rides', 'doordash'] as const).map((p) => (
               <label
@@ -670,40 +533,6 @@ export function AmazonOrdersDashboard({
         </div>
         </div>
       </div>
-
-      {aiLocked && !isPro && (
-        <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-4 sm:px-6">
-          <p className="text-base font-semibold text-amber-50 sm:text-sm sm:text-amber-100">
-            Unlock full Refyndra Pro savings tools
-          </p>
-          {freeTrialPotentialUsd > 0 && (
-            <p className="mt-2 text-base text-amber-50 sm:text-sm sm:text-amber-50/95">
-              From your free scan, advisory AI estimated about{' '}
-              <span className="font-semibold tabular-nums">${freeTrialPotentialUsd.toFixed(2)}</span> total
-              potential — not guaranteed.
-            </p>
-          )}
-          <p className="mt-1 text-base text-amber-100 sm:text-sm sm:text-amber-200/90">
-            Deeper history and unlimited smart batches are included with Pro. You choose when to subscribe — no surprise
-            charges.
-          </p>
-          <Link
-            href="/dashboard#plan"
-            className="mt-3 inline-flex min-h-[48px] touch-manipulation items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-3 text-base font-bold text-[#052e16] hover:opacity-95 sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-semibold"
-          >
-            View plans & upgrade
-          </Link>
-        </div>
-      )}
-
-      {!aiLocked && !isPro && freeTrialPotentialUsd > 0 && (
-        <div className="border-b border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3 sm:px-6">
-          <p className="text-base font-semibold text-emerald-50 sm:text-sm sm:font-medium sm:text-emerald-100/95">
-            Possible savings from this free scan (estimate):{' '}
-            <span className="tabular-nums font-semibold">${freeTrialPotentialUsd.toFixed(2)}</span>
-          </p>
-        </div>
-      )}
 
       <div className="flex flex-wrap gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-6">
         {(['all', 'success', 'failed'] as const).map((f) => (
@@ -772,48 +601,266 @@ export function AmazonOrdersDashboard({
             <p className="text-base font-medium text-[var(--muted)]">
               No compensation signals detected yet
             </p>
-            <p className="mt-2 text-base text-[var(--muted)]/90 sm:text-sm sm:text-[var(--muted)]/80">
-              Sync orders with the extension (Amazon live; Uber paths as your account connects).
+            <p className="mt-2 text-base text-zinc-200/95 sm:text-sm sm:text-[var(--muted)]/80">
+              Use <span className="font-semibold text-white">Primary action</span> above to link Gmail, then tap{' '}
+              <span className="font-semibold text-white">Refresh</span>.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-base text-zinc-300 sm:text-sm sm:text-zinc-400">
-              <span className="font-semibold tabular-nums text-zinc-200">{filtered.length}</span> order
-              {filtered.length === 1 ? '' : 's'} · savings signals refresh when you reload or change filters.
+            <p className="text-base text-zinc-200 sm:text-sm sm:text-zinc-400">
+              <span className="font-semibold tabular-nums text-white">{filtered.length}</span> order
+              {filtered.length === 1 ? '' : 's'} · advisory copy refreshes when you reload or change filters.
             </p>
-            {scoredGrouped.platformOrder.map((platform) => {
-              const list = scoredGrouped.groups.get(platform) ?? [];
-              if (list.length === 0) return null;
-              const label =
-                platform === 'amazon'
-                  ? 'Amazon'
-                  : platform === 'uber_eats'
-                    ? 'Uber Eats'
-                    : platform === 'uber_rides'
-                      ? 'Uber Rides'
-                      : 'DoorDash';
-              const withAi = list.filter(({ row: r }) => aiById[r.id]).length;
-              return (
-                <div
-                  key={platform}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--background)]/45 px-4 py-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <PlatformOrderIcon platform={platform} />
-                      <h3 className="text-lg font-semibold text-zinc-100 sm:text-sm sm:text-zinc-200">{label}</h3>
+
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+              {scoredGrouped.scored.map(({ row: r, platform, intel }) => {
+                const ai = aiById[r.id];
+                const rowLocked = Boolean(ai?.pro_locked);
+                const canCopy =
+                  !rowLocked && Boolean((ai?.ai_complaint ?? ai?.claim_message ?? '').trim());
+                const alertsOn = autoPrefs[platform].enabled;
+                return (
+                  <article
+                    key={r.id}
+                    className="rounded-2xl border border-white/15 bg-white/[0.06] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <PlatformOrderIcon platform={platform} size="compact" />
+                        <span className="text-lg font-bold text-white">{platformTableLabel(platform)}</span>
+                      </div>
+                      <span
+                        className={
+                          r.backendStatus === 'ok'
+                            ? 'shrink-0 text-sm font-semibold text-emerald-400'
+                            : r.backendStatus === 'failed'
+                              ? 'shrink-0 text-sm font-semibold text-red-300'
+                              : 'shrink-0 text-sm font-semibold text-amber-300'
+                        }
+                      >
+                        {r.backendStatus === 'ok' ? 'Synced' : r.backendStatus === 'failed' ? 'Failed' : 'Pending'}
+                      </span>
                     </div>
-                    <span className="text-base font-medium text-zinc-300 sm:text-sm sm:font-normal sm:text-zinc-500">
-                      {list.length} order{list.length === 1 ? '' : 's'} · {withAi} with savings insight
-                    </span>
-                  </div>
-                  <p className="mt-2 text-base leading-relaxed text-zinc-300 sm:text-sm sm:text-zinc-500">
-                    Filters apply to this list. Activity above shows optional boosts you turned on.
-                  </p>
-                </div>
-              );
-            })}
+                    <div className="mt-3">
+                      <p className="font-semibold leading-snug text-white" title={r.productName}>
+                        {r.productName}
+                      </p>
+                      <p className="mt-1 truncate text-sm text-zinc-400" title={r.orderId}>
+                        {r.orderId}
+                      </p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/10 pt-3">
+                      <span className="text-xl font-bold tabular-nums text-emerald-300">
+                        {formatOrderPriceDisplay(r.price)}
+                      </span>
+                      <span className="text-sm text-zinc-300">{r.date}</span>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-violet-500/20 bg-black/20 px-3 py-2">
+                      {ai && rowLocked ? (
+                        <>
+                          <p className="flex items-center gap-2 text-base font-semibold text-amber-200">
+                            <span aria-hidden>🔒</span>
+                            <span>Pro-locked insight</span>
+                          </p>
+                          <p className="mt-1 text-sm leading-snug text-zinc-200">
+                            Up to{' '}
+                            <span className="font-bold text-white">
+                              ${Number(ai.estimated_refund ?? 0).toFixed(2)}
+                            </span>{' '}
+                            flagged — upgrade to unlock the full AI Lawyer and drafts.
+                          </p>
+                        </>
+                      ) : ai ? (
+                        <>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300/95">
+                            {intel.displayLabel}
+                          </p>
+                          <p className="mt-1 line-clamp-3 text-sm leading-snug text-zinc-100" title={ai.reason}>
+                            {ai.reason}
+                          </p>
+                        </>
+                      ) : aiLocked ? (
+                        <p className="text-sm text-zinc-500">—</p>
+                      ) : (
+                        <p className="text-sm text-zinc-400">Preparing advisory…</p>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={() => updatePlatformAuto(platform, !alertsOn)}
+                        className="flex w-full min-h-[52px] touch-manipulation flex-col items-stretch justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-left transition hover:bg-emerald-500/25"
+                      >
+                        <span className="text-lg font-bold text-white">Auto</span>
+                        <span className="mt-0.5 text-sm font-medium leading-snug text-emerald-100/95">
+                          {alertsOn
+                            ? 'Savings alerts on for this platform — tap to turn off'
+                            : 'Savings alerts off — tap to turn on for this platform'}
+                        </span>
+                      </button>
+                      {rowLocked && !isPro ? (
+                        <Link
+                          href="/pricing"
+                          className="flex w-full min-h-[52px] touch-manipulation flex-col items-center justify-center rounded-xl border border-violet-400/50 bg-gradient-to-r from-violet-600/90 to-fuchsia-600/90 px-4 py-3 text-center text-base font-bold text-white shadow-[0_0_24px_rgba(139,92,246,0.45)]"
+                        >
+                          <span>Upgrade to Pro to Claim</span>
+                          <span className="mt-0.5 text-xs font-semibold text-violet-100/95">
+                            One-time steal · {UPGRADE_PRICE_STEAL_DISPLAY} vs money left on the table
+                          </span>
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!canCopy}
+                          onClick={() => void copyAiComplaint(r.id)}
+                          className={`flex w-full min-h-[52px] touch-manipulation flex-col items-stretch justify-center rounded-xl px-4 py-3 text-center transition ${
+                            canCopy
+                              ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-[0_0_24px_rgba(139,92,246,0.4)] hover:brightness-110'
+                              : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          <span className="text-lg font-bold">Manual</span>
+                          <span className="mt-0.5 text-sm font-semibold opacity-95">
+                            {copiedRowId === r.id
+                              ? 'Copied to clipboard'
+                              : canCopy
+                                ? 'Copy AI complaint'
+                                : 'Advisory not ready yet'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--background)]/40 md:block">
+              <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Platform
+                    </th>
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Order
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-right sm:px-4">
+                      Price
+                    </th>
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Date
+                    </th>
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Sync
+                    </th>
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Advisory
+                    </th>
+                    <th scope="col" className="px-3 py-3 sm:px-4">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="text-zinc-200">
+                  {scoredGrouped.scored.map(({ row: r, platform, intel }) => {
+                    const ai = aiById[r.id];
+                    const rowLocked = Boolean(ai?.pro_locked);
+                    const canCopy =
+                      !rowLocked && Boolean((ai?.ai_complaint ?? ai?.claim_message ?? '').trim());
+                    return (
+                      <tr key={r.id} className="border-b border-[var(--border)]/80 last:border-0">
+                        <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+                          <span className="inline-flex items-center gap-2">
+                            <PlatformOrderIcon platform={platform} size="compact" />
+                            {platformTableLabel(platform)}
+                          </span>
+                        </td>
+                        <td className="max-w-[14rem] px-3 py-3 sm:max-w-[18rem] sm:px-4">
+                          <div className="truncate font-medium text-white" title={r.productName}>
+                            {r.productName}
+                          </div>
+                          <div className="truncate text-xs text-zinc-500" title={r.orderId}>
+                            {r.orderId}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums text-emerald-300 sm:px-4">
+                          {formatOrderPriceDisplay(r.price)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-zinc-400 sm:px-4">{r.date}</td>
+                        <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+                          <span
+                            className={
+                              r.backendStatus === 'ok'
+                                ? 'text-emerald-400'
+                                : r.backendStatus === 'failed'
+                                  ? 'text-red-300'
+                                  : 'text-amber-300'
+                            }
+                          >
+                            {r.backendStatus === 'ok' ? 'OK' : r.backendStatus === 'failed' ? 'Failed' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="max-w-xs px-3 py-3 text-zinc-400 sm:px-4">
+                          {ai && rowLocked ? (
+                            <div>
+                              <p className="flex items-center gap-2 text-sm font-semibold text-amber-200">
+                                <span aria-hidden>🔒</span>
+                                <span>Pro-locked</span>
+                              </p>
+                              <p className="mt-1 text-sm text-zinc-200">
+                                Up to{' '}
+                                <span className="font-bold text-white">
+                                  ${Number(ai.estimated_refund ?? 0).toFixed(2)}
+                                </span>{' '}
+                                flagged.
+                              </p>
+                            </div>
+                          ) : ai ? (
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300/90">
+                                {intel.displayLabel}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-sm" title={ai.reason}>
+                                {ai.reason}
+                              </p>
+                            </div>
+                          ) : aiLocked ? (
+                            <span className="text-zinc-600">—</span>
+                          ) : (
+                            <span className="text-zinc-500">Preparing advisory…</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+                          {rowLocked && !isPro ? (
+                            <Link
+                              href="/pricing"
+                              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-violet-400/50 bg-violet-600/20 px-3 py-2.5 text-sm font-bold text-violet-100 hover:bg-violet-600/30 sm:min-h-0"
+                            >
+                              Upgrade to Pro · {UPGRADE_PRICE_STEAL_DISPLAY}
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!canCopy}
+                              onClick={() => void copyAiComplaint(r.id)}
+                              className={`min-h-[44px] touch-manipulation rounded-lg px-3 py-2.5 text-sm font-semibold transition sm:min-h-0 ${
+                                canCopy
+                                  ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white ring-1 ring-violet-300/60 shadow-[0_0_22px_rgba(168,85,247,0.45)] hover:from-violet-400 hover:to-fuchsia-400 hover:shadow-[0_0_28px_rgba(217,70,239,0.52)]'
+                                  : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
+                              }`}
+                            >
+                              {copiedRowId === r.id ? 'Copied' : 'Copy AI Complaint'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

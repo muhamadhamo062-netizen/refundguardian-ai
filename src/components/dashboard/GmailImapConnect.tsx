@@ -2,46 +2,58 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { isPlausibleAppPasswordLength, normalizeAppPassword } from '@/lib/appPasswordNormalize';
-
-import { GmailSecureSyncGuide } from '@/components/dashboard/GmailSecureSyncGuide';
-import { MobileSyncVisualStrip } from '@/components/dashboard/MobileSyncVisualStrip';
-
-const TRUST_COPY =
-  'Encrypted on our servers. Used only to read invoice-style order emails from supported merchants. You can disconnect anytime.';
-
-const BTN_MOBILE_SYNC =
-  'w-full min-h-[52px] touch-manipulation rounded-xl bg-emerald-500 px-4 py-3.5 text-base font-bold text-[#052e16] shadow-[0_0_32px_rgba(16,185,129,0.42)] ring-2 ring-emerald-400/50 transition hover:bg-emerald-400 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:opacity-50';
+import { normalizeAppPassword } from '@/lib/appPasswordNormalize';
+import { dispatchDashboardOrdersRefresh } from '@/lib/dashboard/ordersRefresh';
 
 /**
- * Gmail + App Password → `imap_app_credentials` (IMAP ingest + SMTP for send-from-Gmail where enabled).
+ * Gmail App Password → `imap_app_credentials` (encrypted server-side, isolated by `user_id`).
+ * Once connected, we do not ask for the App Password again unless the user disconnects.
  */
-export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' | 'mobileSync' } = {}) {
-  const mobileSync = variant === 'mobileSync';
+type GmailImapConnectProps = {
+  onConnectionChange?: (connected: boolean) => void;
+  hideWhenConnected?: boolean;
+  /** Dashboard bottom strip: primary CTA label. */
+  primaryCtaLabel?: string;
+  /** Frosted panel inside a glass parent (e.g. dashboard primary action). */
+  surface?: 'default' | 'glass';
+};
 
+export function GmailImapConnect({
+  onConnectionChange,
+  hideWhenConnected = false,
+  primaryCtaLabel = 'Sync Gmail',
+  surface = 'default',
+}: GmailImapConnectProps) {
   const [gmail, setGmail] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [savedEmail, setSavedEmail] = useState<string | null>(null);
   const [lastScanAt, setLastScanAt] = useState<string | null>(null);
   const [lastScanInserted, setLastScanInserted] = useState<number | null>(null);
   const [lastScanError, setLastScanError] = useState<string | null>(null);
-  /** Mobile: reveal visual guide + form only after explicit “Connect Gmail”. */
-  const [connectGmailOpen, setConnectGmailOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  const refreshStatus = useCallback(async () => {
+  const inputClass =
+    surface === 'glass'
+      ? 'w-full rounded-xl border border-white/15 bg-black/35 px-4 py-3 text-base text-white placeholder:text-zinc-500 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-violet-400/45'
+      : 'w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50';
+
+  const refreshStatus = useCallback(async (): Promise<boolean> => {
     const supabase = createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return;
+    const headers: HeadersInit = {};
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
     const res = await fetch('/api/user/gmail-imap', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+      headers,
+      cache: 'no-store',
     });
     const body = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
@@ -50,95 +62,79 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
       last_scan_at?: string | null;
       last_scan_inserted?: number | null;
       last_scan_error?: string | null;
-      error?: string;
     };
     if (body.ok && body.connected) {
       setConnected(true);
+      onConnectionChange?.(true);
       setSavedEmail(body.gmail_address ?? null);
       setLastScanAt(typeof body.last_scan_at === 'string' ? body.last_scan_at : null);
       setLastScanInserted(typeof body.last_scan_inserted === 'number' ? body.last_scan_inserted : null);
       setLastScanError(typeof body.last_scan_error === 'string' ? body.last_scan_error : null);
-    } else {
-      setConnected(false);
-      setSavedEmail(null);
-      setLastScanAt(null);
-      setLastScanInserted(null);
-      setLastScanError(null);
+      return true;
     }
+    setConnected(false);
+    onConnectionChange?.(false);
+    setSavedEmail(null);
+    setLastScanAt(null);
+    setLastScanInserted(null);
+    setLastScanError(null);
+    return false;
   }, []);
 
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
 
-  useEffect(() => {
-    if (connected) setConnectGmailOpen(false);
-  }, [connected]);
-
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
     setStatus(null);
     try {
       const normalizedPw = normalizeAppPassword(appPassword);
-      if (!isPlausibleAppPasswordLength(normalizedPw)) {
-        setError(
-          'Paste the full App Password (about 16 characters). Spaces from your clipboard are OK — we remove them automatically.'
-        );
-        return;
-      }
+      const gmailTrim = gmail.trim();
       const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        setError('Sign in again to save Gmail.');
-        return;
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
       }
-      const res = await fetch('/api/user/gmail-imap', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ gmailAddress: gmail.trim(), appPassword: normalizedPw }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || body.ok !== true) {
-        setError(typeof body.error === 'string' ? body.error : 'Could not save.');
-        return;
-      }
-      setAppPassword('');
-      setStatus('Gmail saved — scanning your inbox for the last 14 days…');
-      await refreshStatus();
 
-      try {
-        const scanRes = await fetch('/api/imap/scan-now', {
+      const postRes = await fetch('/api/user/gmail-imap', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers,
+        body: JSON.stringify({ gmailAddress: gmailTrim, appPassword: normalizedPw }),
+      });
+      setAppPassword('');
+
+      const body = (await postRes.json().catch(() => ({}))) as { ok?: boolean; success?: boolean; error?: string };
+      const persisted = await refreshStatus();
+      dispatchDashboardOrdersRefresh();
+
+      if (persisted) {
+        setShowForm(false);
+        setStatus(null);
+        const scanHeaders: HeadersInit = {};
+        if (session?.access_token) scanHeaders.Authorization = `Bearer ${session.access_token}`;
+        void fetch('/api/imap/scan-now', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const scanBody = (await scanRes.json().catch(() => ({}))) as {
-          success?: boolean;
-          ordersFound?: number;
-          error?: string;
-        };
-        if (scanRes.ok && scanBody.success === true && typeof scanBody.ordersFound === 'number') {
-          setStatus(
-            scanBody.ordersFound > 0
-              ? `Gmail connected — synced ${scanBody.ordersFound} order(s).`
-              : 'Gmail connected — scanned; no matching order emails in the last 14 days yet.'
-          );
-        } else if (!scanRes.ok) {
-          setStatus('Gmail saved. Pull to refresh or tap Scan Now in a moment.');
-        }
-      } catch {
-        setStatus('Gmail saved. Use Scan Now if orders do not appear within a minute.');
+          credentials: 'include',
+          cache: 'no-store',
+          headers: scanHeaders,
+        })
+          .then(() => refreshStatus())
+          .catch(() => void refreshStatus());
+      } else {
+        setStatus(
+          body.error ??
+            (!postRes.ok ? 'Could not save Gmail connection. Check server logs and Supabase schema.' : 'Not connected yet — verify credentials.')
+        );
       }
-      await refreshStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed.');
+    } catch {
+      setStatus('Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }
@@ -146,29 +142,28 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
 
   const onDisconnect = async () => {
     setLoading(true);
-    setError(null);
     try {
       const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      const res = await fetch('/api/user/gmail-imap', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || body.ok !== true) {
-        setError(typeof body.error === 'string' ? body.error : 'Could not remove.');
-        return;
+      const headers: HeadersInit = {};
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
       }
+      await fetch('/api/user/gmail-imap', {
+        method: 'DELETE',
+        credentials: 'include',
+        cache: 'no-store',
+        headers,
+      });
       setConnected(false);
+      onConnectionChange?.(false);
       setSavedEmail(null);
       setLastScanAt(null);
       setLastScanInserted(null);
       setLastScanError(null);
-      setStatus('Saved Gmail connection removed.');
+      setShowForm(false);
     } finally {
       setLoading(false);
     }
@@ -176,146 +171,151 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
 
   const onScanNow = async () => {
     setScanLoading(true);
-    setError(null);
     setStatus(null);
     try {
       const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        setError('Sign in again to scan Gmail.');
-        return;
+      const headers: HeadersInit = {};
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
       }
       const res = await fetch('/api/imap/scan-now', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        cache: 'no-store',
+        headers,
       });
       const body = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         ordersFound?: number;
-        error?: string;
-        detail?: string;
       };
-      if (!res.ok || body.success !== true) {
-        setError(
-          typeof body.detail === 'string'
-            ? `${body.error || 'Scan failed'}: ${body.detail}`
-            : typeof body.error === 'string'
-              ? body.error
-              : 'Scan failed.'
-        );
-        await refreshStatus();
-        return;
+      if (res.ok && body.success === true && typeof body.ordersFound === 'number') {
+        setStatus(`${body.ordersFound} orders imported.`);
       }
-      const n = typeof body.ordersFound === 'number' ? body.ordersFound : 0;
-      setStatus(`${n} orders found.`);
+      dispatchDashboardOrdersRefresh();
       await refreshStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Scan request failed.');
+    } catch {
+      await refreshStatus();
     } finally {
       setScanLoading(false);
     }
   };
 
-  const inputGmailClass = mobileSync
-    ? 'w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-lg text-white placeholder:text-zinc-600'
-    : 'w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3.5 text-lg text-white placeholder:text-zinc-500 sm:min-h-[44px] sm:px-3 sm:py-2 sm:text-base sm:placeholder:text-[var(--muted)]';
+  const cardShell =
+    surface === 'glass'
+      ? 'relative overflow-hidden rounded-xl border border-white/14 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md'
+      : 'relative overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-br from-zinc-950/95 via-[#0c0a12] to-zinc-950/90 shadow-[0_0_42px_rgba(139,92,246,0.18)] ring-1 ring-violet-400/15';
 
-  const inputPwClass = mobileSync
-    ? 'w-full min-h-[60px] rounded-xl border-2 border-emerald-500/35 bg-[var(--background)] px-4 py-4 font-mono text-lg leading-relaxed tracking-wide text-white placeholder:text-zinc-600'
-    : 'w-full min-h-[56px] rounded-xl border-2 border-emerald-500/30 bg-[var(--background)] px-4 py-3.5 font-mono text-lg leading-relaxed tracking-wide text-white placeholder:text-zinc-500 sm:min-h-[44px] sm:border sm:border-[var(--border)] sm:px-3 sm:py-2 sm:text-base sm:placeholder:text-[var(--muted)]';
+  if (connected && hideWhenConnected) {
+    return null;
+  }
 
-  return (
-    <div
-      className={`w-full max-w-none rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-lg shadow-black/20 sm:p-5 ${mobileSync ? 'space-y-4 p-4' : 'space-y-3 p-4'}`}
-    >
-      {!connected && mobileSync ? <MobileSyncVisualStrip /> : null}
-
-      {!mobileSync ? (
-        <div>
-          <p className="text-base font-semibold text-zinc-50 sm:text-sm sm:text-[var(--foreground)]">Secure inbox sync</p>
-          <p className="mt-1 text-base text-[var(--muted)] leading-relaxed sm:text-xs">
-            One-time setup: paste your <strong className="text-zinc-200">Secure Sync Code</strong> (Google App
-            Password). 2-Step Verification must be on. This also unlocks{' '}
-            <strong className="text-zinc-200">Send from my Gmail</strong> in the AI Priority Engine (draft with AI,
-            send from your address). Orders sync to this account alongside the browser connection. Background scans run
-            on a schedule; use <strong className="text-zinc-200">Scan Now</strong> for an immediate pull.
-          </p>
-        </div>
-      ) : !connected && mobileSync && !connectGmailOpen ? (
-        <div className="space-y-3 text-center">
-          <p className="text-base leading-relaxed text-zinc-200 sm:text-sm sm:text-zinc-400">
-            Link Gmail with a secure App Password — no app install. Tap below to see the setup steps and enter your
-            details.
-          </p>
-          <button
-            type="button"
-            onClick={() => setConnectGmailOpen(true)}
-            className={BTN_MOBILE_SYNC}
-          >
-            Connect Gmail
-          </button>
-        </div>
-      ) : !connected && mobileSync && connectGmailOpen ? (
-        <p className="text-center text-base leading-relaxed text-zinc-200 sm:text-sm sm:text-zinc-400">
-          Enter your Gmail and paste your secure code below — we encrypt it and only read delivery-related receipts.
-        </p>
-      ) : null}
-
-      {!connected && !mobileSync ? <GmailSecureSyncGuide /> : null}
-
-      {connected ? (
-        <p className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-base text-emerald-50 sm:text-sm sm:text-emerald-100">
-          Connected: <span className="font-medium">{savedEmail ?? 'Gmail'}</span>
-        </p>
-      ) : null}
-
-      {connected ? (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => void onScanNow()}
-            disabled={loading || scanLoading}
-            className={
-              mobileSync
-                ? BTN_MOBILE_SYNC
-                : 'w-full min-h-[48px] touch-manipulation rounded-xl bg-white/90 px-4 py-3 text-base font-semibold text-black disabled:opacity-50'
-            }
-          >
-            {scanLoading ? 'Scanning Gmail…' : mobileSync ? 'Sync Now' : 'Scan Now'}
-          </button>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base text-zinc-200 sm:text-xs sm:text-zinc-300">
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <span>
-                <span className="text-zinc-400">Last scan:</span>{' '}
-                {lastScanAt ? new Date(lastScanAt).toLocaleString() : '—'}
-              </span>
-              <span>
-                <span className="text-zinc-400">Last found:</span>{' '}
-                {typeof lastScanInserted === 'number' ? lastScanInserted : '—'}
-              </span>
-            </div>
+  if (connected) {
+    return (
+      <div id="gmail-sync-status" className={`${cardShell} px-5 py-4 sm:px-6`}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-6 -top-10 h-28 w-28 rounded-full bg-violet-500/15 blur-3xl"
+        />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/80">Gmail engine</p>
+            <p className="mt-1 truncate text-lg font-semibold text-white">{savedEmail ?? 'Running'}</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Last scan: {lastScanAt ? new Date(lastScanAt).toLocaleString() : '—'} · Orders:{' '}
+              {typeof lastScanInserted === 'number' ? lastScanInserted : '—'}
+            </p>
             {lastScanError ? (
-              <div className="mt-1 text-rose-300">Last error: {lastScanError}</div>
-            ) : null}
-            {!lastScanAt ? (
-              <div className="mt-1 text-zinc-400">No orders found yet — run a scan.</div>
+              <p className="mt-1 text-xs text-zinc-600" title={lastScanError}>
+                Sync will retry automatically.
+              </p>
             ) : null}
           </div>
-          {mobileSync ? (
-            <p className="text-center text-sm font-semibold tracking-wide text-emerald-100 sm:text-[11px] sm:font-medium sm:text-emerald-200/90">
-              🔒 Bank-Level Encryption
-            </p>
-          ) : null}
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+            <button
+              type="button"
+              onClick={() => void onScanNow()}
+              disabled={loading || scanLoading}
+              className="w-full min-h-[52px] rounded-xl bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--background)] shadow-lg shadow-emerald-900/20 disabled:opacity-50 sm:min-h-0 sm:w-auto sm:py-2.5 sm:text-sm"
+            >
+              {scanLoading ? 'Scanning…' : 'Scan inbox'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void onDisconnect()}
+              disabled={loading}
+              className="w-full min-h-[52px] rounded-xl border border-[var(--border)] px-4 py-3 text-base font-medium text-zinc-200 hover:bg-white/[0.04] disabled:opacity-50 sm:min-h-0 sm:w-auto sm:py-2.5 sm:text-sm"
+            >
+              Disconnect
+            </button>
+          </div>
         </div>
-      ) : null}
+        {status ? (
+          <p className="relative mt-3 text-sm font-medium text-emerald-300/95" role="status">
+            {status}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
-      {!connected && (!mobileSync || connectGmailOpen) ? (
-        <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
+  if (!showForm) {
+    return (
+      <div className={cardShell}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-4 -top-8 h-24 w-24 rounded-full bg-violet-500/20 blur-2xl"
+        />
+        <div className="relative flex flex-col items-stretch gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-6">
+          <div className="min-w-0 text-center sm:text-left">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/80">Gmail sync</p>
+            <p className="mt-1 text-base font-semibold text-white">Connect your inbox to import orders</p>
+            <p className="mt-0.5 text-sm text-zinc-400">Uses a Google App Password — never your Refyndra password</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              setStatus(null);
+            }}
+            className="w-full min-h-[52px] shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-violet-900/30 transition hover:brightness-110 sm:w-auto sm:min-h-0 sm:px-8 sm:py-3"
+          >
+            {primaryCtaLabel}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${cardShell} p-5 sm:p-6`}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-4 -bottom-8 h-24 w-24 rounded-full bg-fuchsia-500/10 blur-2xl"
+      />
+      <div className="relative">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <label htmlFor="rg-gmail" className={`mb-1 block ${mobileSync ? 'text-sm font-medium text-zinc-300' : 'text-base font-semibold text-zinc-100 sm:text-xs sm:font-normal sm:text-zinc-400'}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/80">Gmail setup</p>
+            <p className="mt-1 text-lg font-semibold text-white">Connect your inbox</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(false);
+              setStatus(null);
+            }}
+            className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
+          <div>
+            <label htmlFor="rg-gmail" className="mb-1 block text-sm font-medium text-zinc-400">
               Gmail address
             </label>
             <input
@@ -327,22 +327,13 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
               onChange={(e) => setGmail(e.target.value)}
               required
               placeholder="you@gmail.com"
-              className={inputGmailClass}
+              className={inputClass}
             />
           </div>
           <div>
-            <label htmlFor="rg-app-pw" className={`mb-1 block ${mobileSync ? 'text-sm font-semibold text-zinc-100' : 'text-base font-bold text-zinc-50 sm:text-sm sm:font-medium sm:text-zinc-200'}`}>
-              {mobileSync ? 'App password (16 characters)' : 'Secure Sync Code'}
+            <label htmlFor="rg-app-pw" className="mb-1 block text-sm font-medium text-zinc-400">
+              Google App Password
             </label>
-            {!mobileSync ? (
-              <p className="mb-1.5 text-base leading-snug text-zinc-300 sm:text-[11px] sm:text-zinc-500">
-                Invoice-only access — this code does not give us access to your private messages.
-              </p>
-            ) : (
-              <p className="mb-2 text-base leading-snug text-zinc-300 sm:text-[11px] sm:text-zinc-500">
-                Paste the code from Google — spaces are fine.
-              </p>
-            )}
             <input
               id="rg-app-pw"
               name="appPassword"
@@ -350,49 +341,29 @@ export function GmailImapConnect({ variant = 'default' }: { variant?: 'default' 
               autoComplete="current-password"
               value={appPassword}
               onChange={(e) => setAppPassword(e.target.value)}
-              required
-              placeholder={mobileSync ? 'Paste your 16-character code' : 'xxxx xxxx xxxx xxxx (spaces OK)'}
+              placeholder="16-character app password"
               inputMode="text"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              className={inputPwClass}
+              className={`${inputClass} font-mono tracking-wide`}
             />
           </div>
-          <button type="submit" disabled={loading} className={mobileSync ? BTN_MOBILE_SYNC : 'w-full min-h-[48px] touch-manipulation rounded-xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-[var(--background)] disabled:opacity-50'}>
-            {loading ? 'Saving…' : mobileSync ? 'Sync Now' : 'Save & enable sync'}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full min-h-[52px] rounded-xl bg-[var(--accent)] py-3.5 text-base font-bold text-[var(--background)] shadow-lg shadow-emerald-900/20 disabled:opacity-50 touch-manipulation"
+          >
+            {loading ? 'Connecting…' : 'Save & sync'}
           </button>
-          {mobileSync ? (
-            <p className="text-center text-sm font-semibold tracking-wide text-emerald-100 sm:text-[11px] sm:font-medium sm:text-emerald-200/90">
-              🔒 Bank-Level Encryption
-            </p>
-          ) : (
-            <p className="text-base leading-snug text-zinc-300 sm:text-[13px] sm:text-zinc-500">{TRUST_COPY}</p>
-          )}
         </form>
-      ) : null}
 
-      {status ? (
-        <p className="text-base font-semibold text-emerald-200 sm:text-xs sm:font-medium sm:text-emerald-300" role="status">
-          {status}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="text-base font-semibold text-rose-200 sm:text-xs sm:font-medium sm:text-rose-300" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {connected ? (
-        <button
-          type="button"
-          onClick={() => void onDisconnect()}
-          disabled={loading}
-          className="w-full min-h-[48px] rounded-xl border border-[var(--border)] py-3 text-base font-semibold text-zinc-100 hover:bg-zinc-800 disabled:opacity-50 sm:min-h-[44px] sm:py-2.5 sm:text-sm sm:font-normal sm:text-zinc-300"
-        >
-          Remove saved Gmail connection
-        </button>
-      ) : null}
+        {status ? (
+          <p className="mt-4 text-sm font-medium text-amber-200/95" role="status">
+            {status}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

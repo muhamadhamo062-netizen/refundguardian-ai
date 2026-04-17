@@ -9,7 +9,7 @@ const plans = [
     price: '$0',
     period: 'until we win',
     description: 'Try with no upfront cost. Pay only when we recover money for you.',
-    cta: 'Get Started',
+    cta: 'Start Now',
     href: '/signup',
     variant: 'free' as const,
   },
@@ -20,7 +20,7 @@ const plans = [
     period: '/month',
     description: 'Unlimited scans and full autonomous coverage.',
     cta: 'Subscribe',
-    href: '/upgrade',
+    href: '/pricing',
     variant: 'monthly' as const,
   },
   {
@@ -30,7 +30,7 @@ const plans = [
     period: '/year',
     description: 'Best rate — same power as monthly, less out of pocket.',
     cta: 'Subscribe',
-    href: '/upgrade',
+    href: '/pricing',
     variant: 'annual' as const,
   },
 ];

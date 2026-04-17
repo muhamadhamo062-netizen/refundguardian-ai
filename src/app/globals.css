@@ -30,6 +30,18 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
+/* Site-wide mobile readability: one consistent rem scale (18px root) — all pages, no horizontal “tiny text” feel. */
+@media (max-width: 639px) {
+  html {
+    font-size: 18px;
+  }
+
+  body {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
@@ -61,25 +73,41 @@ body {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* Mobile readability force — base scaling (max-width 639px). Use with care: overrides Tailwind text sizes. */
+/* Dashboard: high-contrast shell (typography inherits global mobile html scale above). */
+.dashboard-root {
+  --dashboard-body: 18px;
+}
+
 @media (max-width: 639px) {
-  html,
-  body {
-    font-size: 16px !important;
+  .dashboard-root {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #0a0a0a;
+    --border: #2a2a2e;
+    --muted: #c4c4cc;
+    color: #ffffff;
+    background-color: #000000;
   }
-  p,
-  span,
-  label,
-  input,
-  button {
-    font-size: 1.1rem !important;
-    line-height: 1.6 !important;
+
+  .dashboard-root p,
+  .dashboard-root li {
+    color: rgba(255, 255, 255, 0.92);
   }
-  h1 {
-    font-size: 2.5rem !important;
-    line-height: 1.2 !important;
+}
+
+@media (min-width: 640px) {
+  .dashboard-root {
+    font-size: var(--dashboard-body);
   }
-  h2 {
-    font-size: 1.8rem !important;
+
+  .dashboard-root h1,
+  .dashboard-root .dashboard-hero-h1 {
+    font-size: clamp(2.25rem, 3.5vw, 3rem);
+    line-height: 1.1;
+  }
+
+  .dashboard-root h2 {
+    font-size: clamp(1.75rem, 2vw, 2.25rem);
+    line-height: 1.2;
   }
 }

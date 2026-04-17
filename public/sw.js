@@ -1,4 +1,5 @@
-const CACHE_NAME = 'refyndra-ai-v1';
+/** Bump when shell/offline/icons change so clients drop stale cached assets. */
+const CACHE_NAME = 'refyndra-ai-v6-dashboard-shell';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {

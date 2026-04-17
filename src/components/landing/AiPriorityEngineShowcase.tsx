@@ -115,16 +115,16 @@ export function AiPriorityEngineShowcase() {
               Draft message (demo)
             </span>
             <Link
-              href="/login"
+              href="/signup"
               className={`inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[var(--accent)] px-6 text-base font-bold text-[var(--background)] sm:min-h-[48px] sm:text-sm sm:font-semibold ${LANDING_PRIMARY_CTA_GLOW}`}
             >
-              Sign in — your private engine
+              Start Now
             </Link>
             <Link
-              href="/signup"
+              href="/login"
               className="inline-flex min-h-[52px] items-center justify-center rounded-xl border border-white/10 bg-[var(--background)]/50 px-5 text-base font-semibold text-zinc-200 backdrop-blur-sm transition-all duration-300 ease-out hover:scale-[1.03] hover:border-emerald-500/25 hover:bg-white/[0.06] active:scale-[0.98] sm:min-h-[48px] sm:text-sm sm:font-medium"
             >
-              Create account
+              Sign in
             </Link>
           </div>
         </div>

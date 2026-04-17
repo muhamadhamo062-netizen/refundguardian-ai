@@ -1,17 +1,21 @@
-// FORCE_PRODUCTION_BUILD_V1_APRIL_14
-// GLOBAL_SYNC_V1_APRIL_14
-// FINAL_AI_LAUNCH_APRIL_14
-// DEPLOY_ID: 638194205
-// Mobile update v2 - 2026-04-11T18:30:00Z
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
+import { ICON_ASSET_VERSION } from '@/lib/iconAssetVersion';
 import { getPublicSiteUrl } from '@/lib/siteUrl';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  themeColor: '#0a0b0d',
 };
 
 const SITE_TITLE =
@@ -66,12 +70,25 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-      { url: '/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+      {
+        url: `/icon-192.svg?v=${ICON_ASSET_VERSION}`,
+        sizes: '192x192',
+        type: 'image/svg+xml',
+      },
+      {
+        url: `/icon-512.svg?v=${ICON_ASSET_VERSION}`,
+        sizes: '512x512',
+        type: 'image/svg+xml',
+      },
     ],
-    apple: [{ url: '/icon-192.svg', sizes: '180x180', type: 'image/svg+xml' }],
+    apple: [
+      {
+        url: `/icon-192.svg?v=${ICON_ASSET_VERSION}`,
+        sizes: '180x180',
+        type: 'image/svg+xml',
+      },
+    ],
   },
-  themeColor: '#0a0b0d',
   manifest: '/manifest.webmanifest',
 };
 
@@ -81,9 +98,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-US" dir="ltr" className="dark" suppressHydrationWarning>
+    <html lang="en-US" dir="ltr" className={`dark ${inter.variable}`} suppressHydrationWarning>
       <body
-        className="min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--foreground)] antialiased font-sans"
+        className={`min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--foreground)] antialiased font-sans ${inter.className}`}
         suppressHydrationWarning
       >
         {children}

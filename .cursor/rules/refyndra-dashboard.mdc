@@ -7,4 +7,4 @@ alwaysApply: true
 
 - **Real AI Priority Engine** (`AiPriorityEngineTable`) is **dashboard-only**: each signed-in user has their own data (`localStorage` + `userId`); Gmail send uses that user’s session and `imap_app_credentials`.
 - **Landing page**: use **`AiPriorityEngineShowcase`** for marketing — a visual demo only (static sample platforms, no Supabase, no shared persistence). Never embed `AiPriorityEngineTable` on the public site.
-- **Do not wrap** `AiPriorityEngineTable` in `Deferred` on the dashboard — idle deferral felt like needing a second tap before the section mounted.
+- **Do not wrap** `AiPriorityEngineTable` in idle client-side deferral on the dashboard — it felt like needing a second tap before the section mounted.

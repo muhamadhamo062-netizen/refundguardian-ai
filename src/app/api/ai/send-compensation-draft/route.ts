@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
+import { createClient } from '@/lib/supabase/server';
 import { normalizeAppPassword } from '@/lib/appPasswordNormalize';
 import { decryptAppPassword } from '@/lib/server/gmailImapCrypto';
 import { sendViaGmailSmtp } from '@/lib/server/sendViaGmailSmtp';
@@ -54,11 +55,7 @@ function isValidEmail(v: string): boolean {
 export async function POST(req: Request) {
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.replace(/^Bearer\s+/i, '');
-  if (!token) {
-    return NextResponse.json({ ok: false, error: 'Missing Authorization' }, { status: 401 });
-  }
-
-  const supabase = createSupabaseClient(token);
+  const supabase = token ? createSupabaseClient(token) : createClient();
   const {
     data: { user },
     error: userErr,

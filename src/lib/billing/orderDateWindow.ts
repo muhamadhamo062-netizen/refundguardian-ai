@@ -4,7 +4,7 @@
 
 export const FREE_TRIAL_ORDER_DAYS = 3;
 
-/** Best-effort parse for extension/API date strings. */
+/** Best-effort parse for API / UI date strings. */
 export function parseOrderDateUtc(s: string | null | undefined): Date | null {
   if (!s || s === '—') return null;
   const trimmed = s.trim();

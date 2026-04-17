@@ -2,6 +2,12 @@
  * Refund success + upgrade CTA — email and in-app modal (same merge fields).
  */
 
+import {
+  GOLDEN_EMAIL_SUBJECT,
+  UPGRADE_MORE_WAITING_LINE,
+  UPGRADE_PRICE_STEAL_DISPLAY,
+} from '@/lib/refyndraCoreBusiness';
+
 export type RefundSuccessMergeFields = {
   userDisplayName: string;
   platformLabel: string;
@@ -10,6 +16,9 @@ export type RefundSuccessMergeFields = {
   annualPriceDisplay: string;
   upgradeUrl: string;
   pricingUrl: string;
+  /** Marketing line after the first recovery (not a guarantee of future amounts). */
+  moreWaitingLine: string;
+  upgradeStealDisplay: string;
 };
 
 export function formatUsd(cents: number): string {
@@ -17,29 +26,26 @@ export function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function buildRefundEmailSubject(platformLabel: string): string {
-  return `Check your ${platformLabel} Account! We got your money back 💰`;
+export function buildRefundEmailSubject(_platformLabel: string): string {
+  return GOLDEN_EMAIL_SUBJECT;
 }
 
 export function buildRefundEmailText(f: RefundSuccessMergeFields): string {
   return `Hi ${f.userDisplayName},
 
-Check your ${f.platformLabel} account right now! 💰 We just confirmed that your ${f.amountFormatted} refund is officially back in your balance.
+Congratulations! Refyndra AI has successfully recovered your ${f.amountFormatted} refund from ${f.platformLabel}.
 
-We got you this one for free to show you the power of Refyndra AI. We wanted to prove one thing: your money shouldn't be lost as long as Refyndra is watching your back. This refund was on us so you could experience the true potential of our AI.
+${f.moreWaitingLine}
 
-To keep the bot hunting for refunds 24/7 and catching every delay for all your future orders, upgrade to Pro now:
+Upgrade to Pro for just ${f.upgradeStealDisplay} to unlock your full AI Lawyer and claim every cent you are owed — compared to what you could leave on the table, it's a one-time steal.
 
-Monthly Pro: ${f.monthlyPriceDisplay}, so this subscription literally pays for itself!*
+Monthly: ${f.monthlyPriceDisplay}
+Annual (best value): ${f.annualPriceDisplay}
 
-Annual (best value): ${f.annualPriceDisplay} — Save 25%!
+Upgrade now: ${f.upgradeUrl}
+See all plans: ${f.pricingUrl}
 
-Don't let another refund slip away. Keep your protection active!
-
-Upgrade: ${f.upgradeUrl}
-All plans: ${f.pricingUrl}
-
-*Outcomes depend on merchant policies; not a guarantee of future refunds.`;
+Refyndra never charges without explicit checkout. Outcomes depend on merchant policies; not a guarantee of future refunds.`;
 }
 
 export function buildRefundEmailHtml(f: RefundSuccessMergeFields): string {
@@ -51,19 +57,18 @@ export function buildRefundEmailHtml(f: RefundSuccessMergeFields): string {
       .replace(/"/g, '&quot;');
 
   return `<!DOCTYPE html>
-<html><body style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;color:#e4e4e7;background:#09090b;padding:24px;">
+<html><body style="font-family:system-ui,-apple-system,sans-serif;line-height:1.55;color:#e4e4e7;background:#09090b;padding:24px;">
 <div style="max-width:560px;margin:0 auto;background:#18181b;border-radius:12px;padding:28px;border:1px solid #27272a;">
-<p style="margin:0 0 16px;font-size:16px;">Hi ${escape(f.userDisplayName)},</p>
-<p style="margin:0 0 16px;font-size:16px;">Check your <strong>${escape(f.platformLabel)}</strong> account right now! 💰 We just confirmed that your <strong>${escape(f.amountFormatted)}</strong> refund is officially back in your balance.</p>
-<p style="margin:0 0 16px;font-size:15px;color:#a1a1aa;">We got you this one for free to show you the power of Refyndra AI. We wanted to prove one thing: your money shouldn't be lost as long as Refyndra is watching your back. This refund was on us so you could experience the true potential of our AI.</p>
-<p style="margin:0 0 16px;font-size:15px;">To keep the bot hunting for refunds 24/7 and catching every delay for all your future orders, upgrade to Pro now:</p>
-<p style="margin:0 0 8px;font-size:15px;"><strong>Monthly Pro:</strong> ${escape(f.monthlyPriceDisplay)} — so this subscription literally pays for itself!*</p>
-<p style="margin:0 0 20px;font-size:15px;"><strong>Annual (best value):</strong> ${escape(f.annualPriceDisplay)} (Save 25%!)</p>
-<p style="margin:0 0 20px;font-size:15px;">Don't let another refund slip away. Keep your protection active!</p>
+<p style="margin:0 0 16px;font-size:17px;">Hi ${escape(f.userDisplayName)},</p>
+<p style="margin:0 0 16px;font-size:17px;">Congratulations! Refyndra AI has successfully recovered your <strong>${escape(f.amountFormatted)}</strong> refund from <strong>${escape(f.platformLabel)}</strong>.</p>
+<p style="margin:0 0 16px;font-size:16px;color:#d4d4d8;">${escape(f.moreWaitingLine)}</p>
+<p style="margin:0 0 16px;font-size:16px;">Upgrade to Pro for just <strong>${escape(f.upgradeStealDisplay)}</strong> to unlock your full AI Lawyer and claim every cent you are owed — compared to what you could leave on the table, it&apos;s a one-time steal.</p>
+<p style="margin:0 0 8px;font-size:15px;"><strong>Monthly:</strong> ${escape(f.monthlyPriceDisplay)}</p>
+<p style="margin:0 0 20px;font-size:15px;"><strong>Annual (best value):</strong> ${escape(f.annualPriceDisplay)}</p>
 <p style="margin:0;">
-  <a href="${escape(f.upgradeUrl)}" style="display:inline-block;background:#34d399;color:#052e16;font-weight:600;padding:12px 20px;border-radius:8px;text-decoration:none;">Upgrade to Pro</a>
+  <a href="${escape(f.upgradeUrl)}" style="display:inline-block;background:#a78bfa;color:#0b0b0f;font-weight:700;padding:12px 20px;border-radius:8px;text-decoration:none;">Upgrade to Pro</a>
 </p>
-<p style="margin:24px 0 0;font-size:11px;color:#71717a;">*Outcomes depend on merchant policies; not a guarantee of future refunds.</p>
+<p style="margin:16px 0 0;font-size:13px;color:#a1a1aa;">Refyndra never charges without explicit checkout. Outcomes depend on merchant policies; not a guarantee of future refunds.</p>
 </div></body></html>`;
 }
 
@@ -79,16 +84,20 @@ export function mergeFieldsFromNotificationData(
       ? data.user_display_name.trim()
       : 'there';
   const monthly =
-    process.env.NEXT_PUBLIC_PRO_MONTHLY_DISPLAY?.trim() || '$9.99/month';
-  const annual = process.env.NEXT_PUBLIC_PRO_ANNUAL_DISPLAY?.trim() || '$89.99/year';
+    process.env.NEXT_PUBLIC_PRO_MONTHLY_DISPLAY?.trim() || '$9/month';
+  const annual = process.env.NEXT_PUBLIC_PRO_ANNUAL_DISPLAY?.trim() || '$89/year';
   const base = siteUrl.replace(/\/$/, '');
+  const moreLine =
+    process.env.NEXT_PUBLIC_UPGRADE_TEASER_LINE?.trim() || UPGRADE_MORE_WAITING_LINE;
   return {
     userDisplayName,
     platformLabel,
     amountFormatted: formatUsd(amountCents),
     monthlyPriceDisplay: monthly,
     annualPriceDisplay: annual,
-    upgradeUrl: `${base}/upgrade`,
+    upgradeUrl: `${base}/pricing`,
     pricingUrl: `${base}/pricing`,
+    moreWaitingLine: moreLine,
+    upgradeStealDisplay: UPGRADE_PRICE_STEAL_DISPLAY,
   };
 }

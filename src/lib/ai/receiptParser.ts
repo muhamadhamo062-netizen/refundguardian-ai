@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 
+import { getOpenAiChatModel } from '@/lib/ai/openaiModel';
+
 export type ParsedOrder = {
   provider: 'amazon' | 'uber' | 'uber_eats' | 'doordash' | 'other';
   orderId?: string | null;
@@ -31,7 +33,7 @@ If a field is unknown, use null. Only output JSON, no explanation.
 export async function parseReceiptText(
   text: string
 ): Promise<ParsedOrder | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     // Without an API key we can't use the AI parser; caller can fall back to heuristics.
     return null;
@@ -41,7 +43,7 @@ export async function parseReceiptText(
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getOpenAiChatModel(),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: text.slice(0, 8000) },

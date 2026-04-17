@@ -37,19 +37,7 @@ type OpportunityRow = {
   created_at: string;
 };
 
-type ExtensionSyncRow = {
-  id: string;
-  event_type: string;
-  order_count: number;
-  created_at: string;
-};
-
 const MAX_ITEMS = 12;
-
-function extensionSyncLabel(eventType: string): string {
-  if (eventType === 'amazon_orders_batch') return 'Amazon';
-  return eventType.replace(/_/g, ' ');
-}
 
 function atMs(iso: string | null | undefined): number {
   if (!iso) return 0;
@@ -66,7 +54,6 @@ export function buildActivityFeedItems(input: {
   claims?: ClaimRow[] | null;
   refunds?: RefundRow[] | null;
   opportunities?: OpportunityRow[] | null;
-  extensionSyncs?: ExtensionSyncRow[] | null;
 }): ActivityItem[] {
   const tmp: { item: ActivityItem; t: number }[] = [];
 
@@ -144,20 +131,6 @@ export function buildActivityFeedItems(input: {
         type: 'check',
         title: `Delay signal · ${name.slice(0, 60)}${delay}`,
         time: formatRelativeTime(op.created_at),
-      },
-    });
-  }
-
-  for (const e of input.extensionSyncs ?? []) {
-    const n = typeof e.order_count === 'number' ? e.order_count : 0;
-    const lab = extensionSyncLabel(e.event_type || '');
-    tmp.push({
-      t: atMs(e.created_at),
-      item: {
-        id: `extsync-${e.id}`,
-        type: 'scan',
-        title: `Extension sync · ${n} order${n === 1 ? '' : 's'} · ${lab}`,
-        time: formatRelativeTime(e.created_at),
       },
     });
   }

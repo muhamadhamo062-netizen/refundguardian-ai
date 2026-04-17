@@ -1,5 +1,9 @@
 import type { MetadataRoute } from 'next';
 
+import { ICON_ASSET_VERSION } from '@/lib/iconAssetVersion';
+
+const v = ICON_ASSET_VERSION;
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Refyndra AI',
@@ -13,17 +17,17 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#0a0b0d',
     icons: [
       {
-        src: '/icon-192.svg',
+        src: `/icon-192.svg?v=${v}`,
         sizes: '192x192',
         type: 'image/svg+xml',
       },
       {
-        src: '/icon-512.svg',
+        src: `/icon-512.svg?v=${v}`,
         sizes: '512x512',
         type: 'image/svg+xml',
       },
       {
-        src: '/icon-512-maskable.svg',
+        src: `/icon-512-maskable.svg?v=${v}`,
         sizes: '512x512',
         type: 'image/svg+xml',
         purpose: 'maskable',

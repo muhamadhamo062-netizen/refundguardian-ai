@@ -45,7 +45,7 @@ export function Hero() {
             href="/signup"
             className={`inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[var(--accent)] px-8 py-3.5 text-base font-bold leading-tight text-[var(--background)] sm:min-h-0 sm:text-sm sm:font-semibold ${LANDING_PRIMARY_CTA_GLOW}`}
           >
-            Start free trial
+            Start Now
           </Link>
           <Link
             href="/login"
@@ -57,6 +57,11 @@ export function Hero() {
         <p className="mx-auto mt-4 max-w-md text-base leading-relaxed font-medium text-zinc-400 sm:text-sm sm:font-normal sm:text-[var(--muted)]">
           Free trial includes a limited AI scan on recent orders. Upgrade via Secure Checkout when you want full
           automation — never charged without explicit checkout.
+        </p>
+        <p className="mx-auto mt-3 text-center text-sm text-zinc-500">
+          <Link href="/welcome" className="font-medium text-violet-300/90 underline decoration-violet-500/40 underline-offset-4 hover:text-violet-200">
+            See the 3-step promise
+          </Link>
         </p>
       </div>
     </section>

@@ -1,6 +1,47 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { AnimatedCounter } from '@/components/dashboard/AnimatedCounter';
 
+type PublicStats = {
+  totalRecoveredCents: number;
+  successfulCompensations: number;
+  totalUsers: number;
+};
+
 export function TrustSection() {
+  const [stats, setStats] = useState<PublicStats | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const res = await fetch('/api/stats/public', { cache: 'no-store' });
+        const j = (await res.json().catch(() => ({}))) as Partial<PublicStats> & { ok?: boolean };
+        if (cancelled) return;
+        if (j.ok !== false && res.ok) {
+          setStats({
+            totalRecoveredCents: Math.max(0, Number(j.totalRecoveredCents) || 0),
+            successfulCompensations: Math.max(0, Number(j.successfulCompensations) || 0),
+            totalUsers: Math.max(0, Number(j.totalUsers) || 0),
+          });
+        } else {
+          setStats({ totalRecoveredCents: 0, successfulCompensations: 0, totalUsers: 0 });
+        }
+      } catch {
+        if (!cancelled) setStats({ totalRecoveredCents: 0, successfulCompensations: 0, totalUsers: 0 });
+      }
+    };
+
+    void load();
+    const id = window.setInterval(() => void load(), 120_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const exampleRefunds = [
     { name: 'John', amount: '$12', provider: 'Amazon', ago: '2 hours ago' },
     { name: 'Mike', amount: '$7', provider: 'Uber', ago: '5 hours ago' },
@@ -34,9 +75,9 @@ export function TrustSection() {
       ),
     },
     {
-      title: 'Install Extension or Connect Gmail',
+      title: 'Connect Gmail',
       description:
-        'Add our extension to Chrome or securely link your Gmail in 60 seconds on mobile.',
+        'Link your inbox with a Google App Password — same secure flow on phone and desktop, about a minute.',
       icon: (
         <svg
           className="h-6 w-6 text-teal-400"
@@ -61,7 +102,7 @@ export function TrustSection() {
     },
     {
       title: 'We detect delayed orders',
-      description: 'Our extension watches delivery status and arrival times.',
+      description: 'We read delivery-style receipts and timestamps from the mail you choose to connect.',
       icon: (
         <svg
           className="h-6 w-6 text-cyan-400"
@@ -103,6 +144,8 @@ export function TrustSection() {
     },
   ];
 
+  const recoveredDollars = stats ? stats.totalRecoveredCents / 100 : 0;
+
   return (
     <section className="border-t border-[var(--border)] bg-[var(--card)]/60 px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row">
@@ -120,7 +163,11 @@ export function TrustSection() {
                 Total recovered
               </p>
               <p className="mt-1 inline-block rounded-xl bg-emerald-500/[0.07] px-2 py-1 text-3xl font-bold tabular-nums tracking-tight text-white shadow-[0_0_44px_-10px_rgba(52,211,153,0.55)] ring-1 ring-emerald-400/25 [text-shadow:0_0_32px_rgba(16,185,129,0.35)] sm:text-4xl">
-                <AnimatedCounter value={2340120} prefix="$" />
+                {stats ? (
+                  <AnimatedCounter value={recoveredDollars} prefix="$" decimals={2} />
+                ) : (
+                  <span className="text-[var(--muted)]">…</span>
+                )}
               </p>
             </div>
             <div>
@@ -128,7 +175,11 @@ export function TrustSection() {
                 Successful compensations
               </p>
               <p className="mt-1 text-2xl font-semibold text-white">
-                <AnimatedCounter value={12450} />
+                {stats ? (
+                  <AnimatedCounter value={stats.successfulCompensations} />
+                ) : (
+                  <span className="text-[var(--muted)]">…</span>
+                )}
               </p>
             </div>
             <div>
@@ -136,7 +187,11 @@ export function TrustSection() {
                 Active users
               </p>
               <p className="mt-1 text-2xl font-semibold text-white">
-                <AnimatedCounter value={8200} />
+                {stats ? (
+                  <AnimatedCounter value={stats.totalUsers} />
+                ) : (
+                  <span className="text-[var(--muted)]">…</span>
+                )}
               </p>
             </div>
           </div>
@@ -305,4 +360,3 @@ export function TrustSection() {
     </section>
   );
 }
-

@@ -18,6 +18,8 @@ export type RefundDecisionOutput = {
   ai_complaint?: string;
   /** 0–100 confidence in this advisory (optional for older clients). */
   confidence?: number;
+  /** Free tier: row is visible but full AI / draft is gated until Pro checkout. */
+  pro_locked?: boolean;
 };
 
 export type RefundDecisionWithKey = RefundDecisionOutput & {

@@ -13,10 +13,10 @@ export function FinalCta() {
         </p>
         <div className="mt-8">
           <Link
-            href="/login"
+            href="/signup"
             className={`inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[var(--accent)] px-8 py-3.5 text-base font-bold text-[var(--background)] sm:min-h-0 sm:py-3 sm:text-sm sm:font-semibold ${LANDING_PRIMARY_CTA_GLOW}`}
           >
-            Scan My Orders Now
+            Start Now
           </Link>
         </div>
       </div>

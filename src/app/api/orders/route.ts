@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createSupabaseClient } from '@/lib/supabase/api';
+import { createClient as createServerSupabase } from '@/lib/supabase/server';
 import {
   isOrdersRelationMissingError,
   ordersTableMissingResponse,
@@ -14,8 +14,9 @@ function logOrdersApiDebug(...args: unknown[]) {
   }
 }
 
-/** Always logged — post-ingest /analyze and /compensation failures (silent to client). */
+/** Logged only when `ORDERS_API_DEBUG=1` (default: quiet in production). */
 function logOrdersAutomationWarn(stage: string, orderId: string, detail: string) {
+  if (process.env.ORDERS_API_DEBUG !== '1') return;
   const msg = detail.length > 800 ? `${detail.slice(0, 800)}…` : detail;
   console.warn(`[Refyndra] [api/orders automation:${stage}] order_id=${orderId}`, msg);
 }
@@ -93,19 +94,14 @@ function formatPriceDisplay(cents: number | null, currency: string | null): stri
 }
 
 /**
- * List latest orders for the authenticated user (Bearer token).
+ * List latest orders for the signed-in user (session cookies or optional Bearer).
  * Query: ?limit=50 (default 50, max 200), optional ?provider=amazon|uber|...
  */
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.replace(/^Bearer\s+/i, '');
-    if (!token) {
-      return NextResponse.json(
-        { ok: false, error: 'Missing Authorization token' },
-        { status: 401 }
-      );
-    }
+    const supabase = token ? createSupabaseClient(token) : createServerSupabase();
 
     const { searchParams } = new URL(request.url);
     const limitRaw = searchParams.get('limit');
@@ -122,14 +118,13 @@ export async function GET(request: Request) {
       'other',
     ]);
 
-    const supabase = createSupabaseClient(token);
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json(
-        { ok: false, error: 'Invalid or expired token' },
+        { ok: false, error: 'Sign in required' },
         { status: 401 }
       );
     }
@@ -203,39 +198,7 @@ export async function GET(request: Request) {
   }
 }
 
-type ExtensionOrderRow = {
-  orderId?: string;
-  productTitle?: string;
-  price?: string;
-  status?: string;
-  date?: string;
-  /** Optional deep pass from extension (detail/receipt/issue hints). */
-  deepScan?: Record<string, unknown>;
-};
-
-function parsePriceToCents(price: unknown): number | null {
-  if (price == null) return null;
-  const s = String(price).replace(/,/g, '');
-  const m = s.match(/([\d.]+)/);
-  if (!m) return null;
-  const n = parseFloat(m[1]);
-  if (Number.isNaN(n)) return null;
-  return Math.round(n * 100);
-}
-
-function toDate(v: unknown): string | null {
-  if (v == null) return null;
-  if (typeof v === 'string') {
-    const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return d.toISOString();
-  }
-  return null;
-}
-
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.replace(/^Bearer\s+/i, '');
-
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -243,186 +206,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  /**
-   * Unauthed single-order ingest (local extension -> API -> Supabase).
-   * Uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS; writes user_id as NULL.
-   */
-  if (!token && typeof body.provider === 'string') {
-    try {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!url || !serviceKey) {
-        return NextResponse.json(
-          { ok: false, error: 'Missing SUPABASE_SERVICE_ROLE_KEY', db: 'error' as const },
-          { status: 500 }
-        );
-      }
-
-      const provider = String(body.provider || 'other');
-      const orderId = typeof body.order_id === 'string' ? body.order_id : null;
-      const merchantName = typeof body.merchant_name === 'string' ? body.merchant_name : null;
-      const amountNum =
-        typeof body.amount === 'number'
-          ? body.amount
-          : typeof body.amount === 'string'
-            ? Number(body.amount)
-            : null;
-      const createdAt = typeof body.created_at === 'string' ? body.created_at : null;
-      const raw = (body.raw as Record<string, unknown> | null) ?? null;
-
-      const supa = createClient(url, serviceKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-
-      const cents = typeof amountNum === 'number' && Number.isFinite(amountNum) ? Math.round(amountNum * 100) : null;
-      const orderDate = createdAt ? toDate(createdAt) : null;
-
-      const { data, error } = await supa
-        .from('orders')
-        .insert({
-          user_id: null,
-          provider,
-          order_id: orderId,
-          merchant_name: merchantName,
-          amount: typeof amountNum === 'number' && Number.isFinite(amountNum) ? amountNum : null,
-          order_date: orderDate,
-          order_value_cents: cents,
-          currency: 'USD',
-          raw: raw,
-          raw_email: raw,
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        if (isOrdersRelationMissingError(error)) {
-          return NextResponse.json(ordersTableMissingResponse(), { status: 503 });
-        }
-        return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
-      }
-
-      return NextResponse.json({ success: true, id: data?.id ?? null });
-    } catch (e) {
-      logOrdersApiDebug('[api/orders POST unauth]', e);
-      return NextResponse.json(
-        { ok: false, error: e instanceof Error ? e.message : 'Server error' },
-        { status: 500 }
-      );
-    }
+  if (Array.isArray(body.orders)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Batch order upload is disabled. Connect Gmail on the dashboard and use inbox sync.',
+      },
+      { status: 410 }
+    );
   }
 
-  if (!token) {
-    return NextResponse.json({ error: 'Missing Authorization token' }, { status: 401 });
-  }
-
-  const supabase = createSupabaseClient(token);
+  const authHeader = request.headers.get('Authorization');
+  const bearerToken = authHeader?.replace(/^Bearer\s+/i, '');
+  const supabase = bearerToken ? createSupabaseClient(bearerToken) : createServerSupabase();
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
   if (userError || !user) {
-    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  /** Batch ingestion from Chrome extension (Amazon extraction) */
-  if (Array.isArray(body.orders)) {
-    try {
-      const pageUrl = typeof body.url === 'string' ? body.url : '';
-      const extractedAt = typeof body.extractedAt === 'string' ? body.extractedAt : null;
-      const rows = body.orders as ExtensionOrderRow[];
-
-      const baseUrl = getPublicSiteUrl();
-
-      const insertedIds: string[] = [];
-      const errors: string[] = [];
-      let ordersTableMissing = false;
-
-      for (const item of rows) {
-        try {
-          const orderId = item.orderId ?? null;
-          if (orderId && String(orderId).startsWith('rg-seed-')) {
-            continue;
-          }
-          const merchantName = item.productTitle ?? null;
-          const orderDate = toDate(item.date) ?? null;
-          const cents = parsePriceToCents(item.price);
-
-          const rawPayload: Record<string, unknown> = {
-            source: 'amazon_extension',
-            page_url: pageUrl,
-            batch_extracted_at: extractedAt,
-            extracted: item,
-          };
-          if (item.deepScan && typeof item.deepScan === 'object') {
-            rawPayload.deep_scan = item.deepScan;
-          }
-
-          const { data: order, error } = await supabase
-            .from('orders')
-            .insert({
-              user_id: user.id,
-              provider: 'amazon',
-              order_id: orderId,
-              order_date: orderDate,
-              promised_delivery_time: null,
-              actual_delivery_time: null,
-              order_value_cents: cents,
-              currency: 'USD',
-              merchant_name: merchantName,
-              raw_email: rawPayload,
-            })
-            .select('id')
-            .single();
-
-          if (error) {
-            if (isOrdersRelationMissingError(error)) {
-              ordersTableMissing = true;
-              errors.push(error.message);
-              break;
-            }
-            errors.push(error.message);
-            continue;
-          }
-
-          if (order?.id) {
-            insertedIds.push(order.id);
-            await runAnalyzeAndCompensationChain(baseUrl, token, order.id);
-          }
-        } catch (rowErr) {
-          errors.push(rowErr instanceof Error ? rowErr.message : String(rowErr));
-        }
-      }
-
-      if (ordersTableMissing) {
-        return NextResponse.json(
-          {
-            ...ordersTableMissingResponse(),
-            mode: 'batch' as const,
-            inserted: insertedIds.length,
-            order_ids: insertedIds,
-            errors: errors.length ? errors : undefined,
-          },
-          { status: 503 }
-        );
-      }
-
-      return NextResponse.json({
-        ok: true,
-        mode: 'batch',
-        inserted: insertedIds.length,
-        order_ids: insertedIds,
-        errors: errors.length ? errors : undefined,
-      });
-    } catch (batchErr) {
-      logOrdersApiDebug('[api/orders POST batch]', batchErr);
-      return NextResponse.json(
-        { ok: false, error: batchErr instanceof Error ? batchErr.message : 'Batch failed' },
-        { status: 500 }
-      );
-    }
+  let automationToken = bearerToken ?? '';
+  if (!automationToken) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    automationToken = session?.access_token ?? '';
   }
 
-  /** Single-order (legacy) */
+  /** Single-order (server or trusted client; not used for browser batch upload). */
   const provider = (body.provider as string) || 'other';
   const providerMap: Record<string, string> = {
     amazon: 'amazon',
@@ -473,9 +286,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (order?.id) {
+  if (order?.id && automationToken) {
     const baseUrl = getPublicSiteUrl();
-    await runAnalyzeAndCompensationChain(baseUrl, token, order.id);
+    await runAnalyzeAndCompensationChain(baseUrl, automationToken, order.id);
   }
 
   return NextResponse.json({ ok: true, order_id: order?.id });

@@ -25,7 +25,7 @@ const steps = [
     step: 2,
     title: 'Silent monitoring',
     description:
-      'Once connected, the extension works quietly in the background. You don’t need to open those order pages or this dashboard again to catch new delays.',
+      'After Gmail is linked, scans run on a schedule in the background. You can open the dashboard anytime to review opportunities and drafts.',
     icon: (
       <svg
         className="h-6 w-6 text-teal-400"

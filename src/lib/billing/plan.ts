@@ -1,8 +1,10 @@
 /**
  * Plan gating — subscription billing via checkout; no charges without checkout.
+ * Product rules (first win, golden email, locks): see `src/lib/refyndraCoreBusiness.ts` + `/api/refund-decision`.
  */
 
-export const FREE_TIER_AI_ORDER_LIMIT = 5;
+/** One complimentary full AI unlock (highest-priority order) for non‑Pro users. */
+export const FREE_TIER_AI_ORDER_LIMIT = 30;
 export const PRO_AI_ORDER_LIMIT = 30;
 
 export type UserBillingRow = {
@@ -23,10 +25,11 @@ export type UserBillingRow = {
 
 export function isProSubscriber(p: UserBillingRow | null | undefined): boolean {
   if (!p) return false;
-  const plan = (p.plan ?? '').toLowerCase();
-  if (plan === 'monthly' || plan === 'annual') return true;
-  const st = (p.subscription_status ?? '').toLowerCase();
-  return st === 'active' || st === 'trialing';
+  const plan = (p.plan ?? '').toLowerCase().trim();
+  const st = (p.subscription_status ?? '').toLowerCase().trim();
+  const paidPlan =
+    plan === 'pro' || plan === 'monthly' || plan === 'annual' || plan === 'year' || plan === 'lifetime';
+  return paidPlan && (st === 'active' || st === 'trialing');
 }
 
 export function isTrialWindowOpen(p: UserBillingRow | null | undefined): boolean {
@@ -43,8 +46,7 @@ export function trialDaysRemaining(p: UserBillingRow | null | undefined): number
 }
 
 export function maxAiOrdersForUser(p: UserBillingRow | null | undefined): number {
-  if (isProSubscriber(p)) return PRO_AI_ORDER_LIMIT;
-  return FREE_TIER_AI_ORDER_LIMIT;
+  return isProSubscriber(p) ? PRO_AI_ORDER_LIMIT : FREE_TIER_AI_ORDER_LIMIT;
 }
 
 export function planLabel(p: UserBillingRow | null | undefined): string {
@@ -53,9 +55,8 @@ export function planLabel(p: UserBillingRow | null | undefined): string {
   return 'Free';
 }
 
-/** Non-Pro user has consumed the one-time free AI scan (permanent lock). */
+/** Non‑Pro user has consumed the one-time complimentary AI unlock (`trial_used`). */
 export function isFreeTrialAiLocked(p: UserBillingRow | null | undefined): boolean {
-  if (!p || isProSubscriber(p)) return false;
-  if (p.trial_used === true) return true;
-  return Boolean(p.free_trial_initial_scan_completed_at);
+  if (isProSubscriber(p)) return false;
+  return Boolean(p?.trial_used);
 }

@@ -1,7 +1,9 @@
+import type { User } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function updateSession(request: NextRequest) {
+/** Refreshes the session cookie on the response and returns the authenticated user (if any). */
+export async function updateSession(request: NextRequest): Promise<{ response: NextResponse; user: User | null }> {
   const response = NextResponse.next({
     request,
   });
@@ -23,7 +25,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return response;
+  return {
+    response: response ?? NextResponse.next({ request }),
+    user: user ?? null,
+  };
 }

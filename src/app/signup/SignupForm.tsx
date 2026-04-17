@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { RefyndraMark } from '@/components/brand/RefyndraMark';
 
 export function SignupForm() {
   const [loading, setLoading] = useState(false);
@@ -13,30 +14,36 @@ export function SignupForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email.trim() || !password) {
+    const emailTrim = email.trim();
+    if (!emailTrim || !password) {
       setError('Please enter email and password.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
       return;
     }
     try {
       setLoading(true);
       const supabase = createClient();
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: emailTrim,
         password,
+        options: {
+          emailRedirectTo: origin ? `${origin}/dashboard` : undefined,
+        },
       });
       if (signUpError) {
-        console.error(signUpError.message);
         setError(signUpError.message);
         setLoading(false);
         return;
       }
-      window.location.href = '/dashboard';
-    } catch (err) {
-      console.error('Sign up error:', err);
+      if (signUpData.session) {
+        window.location.href = '/dashboard';
+        return;
+      }
+      setError(
+        'Account created — check your email to confirm, then sign in. If confirmation is off in Supabase, use Sign in with the same email and password.'
+      );
+      setLoading(false);
+    } catch {
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
@@ -45,14 +52,16 @@ export function SignupForm() {
   return (
     <div className="w-full max-w-md space-y-8">
       <div className="text-center">
-        <Link href="/" translate="no" className="text-3xl font-bold text-white hover:text-[var(--accent)] sm:text-2xl">
-          Refyndra AI
+        <Link
+          href="/"
+          translate="no"
+          className="inline-flex items-center justify-center gap-3 text-3xl font-bold text-white hover:text-[var(--accent)] sm:text-2xl"
+        >
+          <RefyndraMark size={48} variant="inline" className="shrink-0" aria-hidden />
+          <span>Refyndra AI</span>
         </Link>
         <h1 className="mt-6 text-3xl font-bold text-white sm:text-2xl">Create account</h1>
-        <p className="mt-2 text-base text-[var(--muted)] sm:text-sm">
-          Enter your email and a password to get started. New accounts include a free trial window (no
-          subscription charge until you choose a paid plan in the dashboard).
-        </p>
+        <p className="mt-2 text-base text-[var(--muted)] sm:text-sm">Professional refund intelligence for your purchases.</p>
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8">
@@ -62,6 +71,10 @@ export function SignupForm() {
           </div>
         )}
         <form onSubmit={handleSignUp} className="space-y-4">
+          <p className="rounded-lg border border-violet-500/30 bg-gradient-to-br from-violet-950/80 to-zinc-950/90 px-4 py-3 text-sm font-semibold leading-snug text-violet-100 shadow-inner shadow-violet-500/10">
+            <span className="font-bold text-white">Choose a password for your Refyndra account.</span> Not your Gmail
+            password. Gmail sync is set up separately in your dashboard after sign-up.
+          </p>
           <div>
             <label htmlFor="signup-email" className="mb-1 block text-base font-semibold text-zinc-200 sm:text-xs sm:font-medium sm:text-[var(--muted)]">
               Email
@@ -88,10 +101,9 @@ export function SignupForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full min-h-[52px] rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3.5 text-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:min-h-0 sm:py-3 sm:text-sm sm:placeholder:text-[var(--muted)]"
-              placeholder="••••••••"
+              placeholder="Create a strong password"
               disabled={loading}
             />
-            <p className="mt-1 text-base text-[var(--muted)] sm:text-xs">At least 6 characters</p>
           </div>
           <button
             type="submit"

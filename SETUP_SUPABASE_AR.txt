@@ -3,7 +3,7 @@
 
 (1) الجداول في قاعدة البيانات
 ------------------------------
-تحذير "Migration 014" و "IMAP table missing" يختفيان فقط بعد إنشاء الجداول في Supabase.
+تحذير "IMAP table missing" يختفي فقط بعد إنشاء الجداول في Supabase وتشغيل الـ migrations اللازمة.
 
 افعل هذا مرة واحدة:
   • ادخل https://supabase.com → مشروعك → SQL Editor → New query
@@ -23,6 +23,6 @@
 إذا كان NEXT_PUBLIC_SUPABASE_ANON_KEY لا يبدأ بـ eyJ فقد يكون خطأ.
 من Settings → API انسخ المفتاح المسمى anon / public (JWT طويل).
 
-(4) الإكستنشن وتبويبات الطلبات
--------------------------------
-بعد (1) و(2): حدّث الصفحة، ثم chrome://extensions → Reload للإكستنشن، ثم جرّب زر "Open order pages again".
+(4) ربط Gmail من اللوحة
+-----------------------
+بعد (1) و(2): افتح `/dashboard` واربط Gmail (IMAP + App Password) من قسم الاتصال، ثم انتظر المسح أو شغّل `imap-scan` إن وُجد.

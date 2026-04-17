@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createSupabaseClient } from '@/lib/supabase/api';
 import OpenAI from 'openai';
 
+import { getOpenAiChatModel } from '@/lib/ai/openaiModel';
+
 export async function POST(request: Request) {
   const authHeader = request.headers.get('Authorization');
   const bearer = authHeader?.match(/^Bearer\s+(.+)$/i);
@@ -57,9 +59,16 @@ Provider: ${order.provider}. Order ID: ${order.order_id || 'N/A'}.
 Promised: ${order.promised_delivery_time}. Actual: ${order.actual_delivery_time}.
 Request compensation for the delay. One short paragraph, polite but firm.`;
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
+      model: getOpenAiChatModel(),
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write polished U.S. customer-support English: concise, factual, professional. No threats or fabricated details.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: 360,
     });
     const text = completion.choices[0]?.message?.content ?? null;
 
@@ -100,7 +109,7 @@ Request compensation for the delay. One short paragraph, polite but firm.`;
       status: 'submitted',
       amount_cents: order.order_value_cents,
       currency: order.currency ?? 'USD',
-      notes: 'Auto-claim from extension',
+      notes: 'Auto-claim from pipeline',
     });
     return NextResponse.json({ ok: true, message: 'Claim submitted' });
   }

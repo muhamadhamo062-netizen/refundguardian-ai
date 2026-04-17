@@ -1,4 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Refyndra">
-  <rect width="512" height="512" rx="64" fill="#0a0b0d"/>
-  <text x="256" y="300" text-anchor="middle" fill="#34d399" font-family="system-ui,Segoe UI,sans-serif" font-size="140" font-weight="700">RG</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" role="img" aria-label="Refyndra">
+  <defs>
+    <linearGradient id="rfy" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0a0b0d"/>
+  <!-- Shield -->
+  <path
+    d="M256 54 L388 118 C424 186 424 326 388 394 L256 458 L124 394 C88 326 88 186 124 118 L256 54Z"
+    stroke="url(#rfy)"
+    stroke-width="20"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <!-- Abstract R -->
+  <path
+    d="M176 122 L176 390 M196 122 C315 114 352 210 222 278 L372 390"
+    stroke="url(#rfy)"
+    stroke-width="32"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <!-- Upward return sweep -->
+  <path
+    d="M286 292 C358 258 404 196 396 118"
+    stroke="url(#rfy)"
+    stroke-width="18"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.95"
+  />
 </svg>

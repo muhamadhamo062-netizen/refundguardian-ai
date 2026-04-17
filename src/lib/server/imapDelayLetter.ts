@@ -7,6 +7,8 @@
 import OpenAI from 'openai';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { getOpenAiChatModel } from '@/lib/ai/openaiModel';
+
 const DELAY_THRESHOLD_MIN = 15;
 
 export type DelayLetterOrder = {
@@ -55,22 +57,27 @@ export async function triggerDelayLetterIfNeeded(
   if (openaiKey) {
     try {
       const client = new OpenAI({ apiKey: openaiKey });
-      const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+      const model = getOpenAiChatModel();
       const completion = await client.chat.completions.create({
         model,
         messages: [
           {
+            role: 'system',
+            content:
+              'You write clear, executive-level American English for customer-to-support messages. No threats, no invented facts.',
+          },
+          {
             role: 'user',
             content:
-              `Generate a short, professional compensation request message for a delayed delivery (US English). ` +
+              `Draft a brief compensation request for a delayed delivery (one tight paragraph, merchant support tone). ` +
               `Provider: ${order.provider}. Order ID: ${order.order_id || 'N/A'}. ` +
               `Promised delivery: ${order.promised_delivery_time}. Actual delivery: ${order.actual_delivery_time}. ` +
               `Delay was approximately ${delayMinutes} minutes (threshold ${DELAY_THRESHOLD_MIN}+ minutes). ` +
-              `One concise paragraph, polite but firm. Use varied wording.`,
+              `State the issue, cite times factually, and ask for a fair remedy.`,
           },
         ],
-        max_tokens: 380,
-        temperature: 0.85,
+        max_tokens: 420,
+        temperature: 0.72,
       });
       letter = completion.choices[0]?.message?.content?.trim() ?? null;
     } catch (e) {

@@ -1,12 +1,9 @@
-// GLOBAL_SYNC_V1_APRIL_14
-// Mobile update v2 - 2026-04-11T18:30:00Z
 import type { Metadata } from 'next';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { LandingJsonLd } from '@/components/seo/LandingJsonLd';
 import { RefyndraHeroComparison } from '@/components/landing/RefyndraHeroComparison';
 import { Hero } from '@/components/landing/Hero';
-import { VideoDemo } from '@/components/landing/VideoDemo';
 import { TrustSection } from '@/components/landing/TrustSection';
 import { Testimonials } from '@/components/landing/Testimonials';
 import { HowItWorks } from '@/components/landing/HowItWorks';
@@ -14,6 +11,7 @@ import { FinalCta } from '@/components/landing/FinalCta';
 import { PricingCards } from '@/components/landing/PricingCards';
 import { FaqSection } from '@/components/landing/FaqSection';
 import { AiPriorityEngineShowcase } from '@/components/landing/AiPriorityEngineShowcase';
+import { FirstVisitWelcomeGate } from '@/components/onboarding/FirstVisitWelcomeGate';
 
 export const metadata: Metadata = {
   alternates: {
@@ -24,19 +22,19 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <>
+      <FirstVisitWelcomeGate />
       <LandingJsonLd />
       <Navbar />
       <main>
         <Hero />
-        <VideoDemo />
-        <TrustSection />
-        <Testimonials />
-        <HowItWorks />
         <div className="border-t border-white/[0.06] bg-[var(--background)]">
-          <div className="mx-auto max-w-7xl space-y-16 px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
             <RefyndraHeroComparison />
           </div>
         </div>
+        <TrustSection />
+        <Testimonials />
+        <HowItWorks />
         <section
           id="ai-priority-preview"
           className="border-t border-white/[0.06] bg-[var(--background)]"

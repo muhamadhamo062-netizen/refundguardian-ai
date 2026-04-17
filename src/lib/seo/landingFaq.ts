@@ -6,7 +6,7 @@ export const LANDING_FAQ_ITEMS: readonly { q: string; a: string }[] = [
   },
   {
     q: 'Do I need a computer to use Refyndra?',
-    a: 'No! While our Chrome Extension is great for desktop, mobile users can simply connect their Gmail via Secure App Password. It works perfectly on iPhone and Android.',
+    a: 'No. Connect Gmail with a Secure App Password from any device — iPhone, Android, or desktop — using the same account.',
   },
   {
     q: 'How much can I actually recover?',

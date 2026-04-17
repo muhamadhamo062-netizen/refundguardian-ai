@@ -12,7 +12,8 @@
     "db:link": "supabase link",
     "db:migrate": "node scripts/run-migrate.cjs",
     "db:migrate:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/supabase-migrate.ps1",
-    "db:migrate:unix": "bash scripts/supabase-migrate.sh"
+    "db:migrate:unix": "bash scripts/supabase-migrate.sh",
+    "sync:d-ai": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mirror-src-to-d-ai.ps1"
   },
   "engines": {
     "node": ">=20"

@@ -26,7 +26,7 @@ export function LockedCompensationCard({ amountDollars }: Props) {
           </p>
         </div>
         <Link
-          href="/upgrade"
+          href="/dashboard"
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--background)] transition hover:opacity-95"
         >
           Upgrade to Pro

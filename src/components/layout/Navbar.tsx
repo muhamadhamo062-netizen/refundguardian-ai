@@ -3,14 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { RefyndraMark } from '@/components/brand/RefyndraMark';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { LANDING_PRIMARY_CTA_GLOW } from '@/lib/landingPrimaryCta';
 import { createClient } from '@/lib/supabase/client';
 
 const baseLinks = [
+  { href: '/welcome', label: 'Why Refyndra' },
   { href: '/#how-it-works', label: 'How It Works' },
   { href: '/#faq', label: 'FAQ' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/about', label: 'About' },
+  { href: '/terms', label: 'Terms' },
 ] as const;
 
 export function Navbar() {
@@ -24,7 +28,9 @@ export function Navbar() {
     const supabase = createClient();
 
     supabase.auth.getSession().then(({ data, error }) => {
-      if (error) console.error(error.message);
+      if (error && process.env.NODE_ENV === 'development') {
+        console.warn('[Navbar] session', error.message);
+      }
       if (!alive) return;
       setIsAuthed(!!data.session);
     });
@@ -50,7 +56,9 @@ export function Navbar() {
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signOut();
-      if (error) console.error(error.message);
+      if (error && process.env.NODE_ENV === 'development') {
+        console.warn('[Navbar] signOut', error.message);
+      }
     } finally {
       setMobileOpen(false);
       router.replace('/login');
@@ -64,9 +72,17 @@ export function Navbar() {
         <Link
           href="/"
           translate="no"
-          className="text-2xl font-bold !leading-tight tracking-tight text-white hover:text-[var(--accent)] transition-colors sm:text-lg sm:font-semibold"
+          className="group flex min-w-0 shrink-0 items-center gap-2.5 sm:gap-3"
         >
-          Refyndra
+          <RefyndraMark
+            size={34}
+            variant="inline"
+            className="shrink-0 drop-shadow-[0_0_14px_rgba(139,92,246,0.35)] transition-transform duration-200 group-hover:scale-[1.03]"
+            aria-hidden
+          />
+          <span className="text-xl font-bold !leading-tight tracking-tight text-white transition-colors group-hover:text-[var(--accent)] sm:text-lg sm:font-semibold">
+            Refyndra
+          </span>
         </Link>
 
         <ul className="hidden md:flex items-center gap-8">
@@ -94,6 +110,14 @@ export function Navbar() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <InstallButton />
+          {!isAuthed ? (
+            <Link
+              href="/signup"
+              className={`hidden md:inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--background)] hover:bg-[var(--accent-muted)] transition-colors ${LANDING_PRIMARY_CTA_GLOW}`}
+            >
+              Start Now
+            </Link>
+          ) : null}
           {isAuthed ? (
             <button
               type="button"
@@ -105,9 +129,9 @@ export function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="hidden md:inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:bg-[var(--accent-muted)] transition-colors"
+              className="hidden md:inline-flex rounded-lg border border-white/10 bg-[var(--background)]/80 px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
             >
-              Login
+              Sign in
             </Link>
           )}
           <button
@@ -160,7 +184,7 @@ export function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-3.5 !text-lg !font-bold !leading-tight text-[var(--background)] sm:min-h-[48px] sm:py-3 sm:!text-base sm:font-semibold ${LANDING_PRIMARY_CTA_GLOW}`}
                   >
-                    Create account
+                    Start Now
                   </Link>
                   <Link
                     href="/login"

@@ -1,3 +1,4 @@
+import { ICON_ASSET_VERSION } from '@/lib/iconAssetVersion';
 import { getPublicSiteUrl } from '@/lib/siteUrl';
 import { LANDING_FAQ_ITEMS } from '@/lib/seo/landingFaq';
 
@@ -19,6 +20,7 @@ function optionalAggregateRating():
 
 export function buildLandingPageJsonLd(): Record<string, unknown> {
   const base = getPublicSiteUrl();
+  const icon512 = `${base}/icon-512.svg?v=${ICON_ASSET_VERSION}`;
   const aggregateRating = optionalAggregateRating();
 
   const software: Record<string, unknown> = {
@@ -29,9 +31,9 @@ export function buildLandingPageJsonLd(): Record<string, unknown> {
       'Stop letting big brands keep your money. Refyndra is an AI-powered tool that automatically detects late deliveries and secures refunds for you. No manual effort, no hidden fees.',
     applicationCategory: 'FinanceApplication',
     operatingSystem: 'Web',
-    browserRequirements: 'Requires JavaScript. Chrome recommended for the browser extension.',
+    browserRequirements: 'Requires JavaScript. Modern browser recommended.',
     url: base,
-    image: `${base}/icon-512.svg`,
+    image: icon512,
     offers: {
       '@type': 'Offer',
       price: '9.99',
@@ -68,7 +70,7 @@ export function buildLandingPageJsonLd(): Record<string, unknown> {
         url: base,
         logo: {
           '@type': 'ImageObject',
-          url: `${base}/icon-512.svg`,
+          url: icon512,
         },
         sameAs: [],
       },

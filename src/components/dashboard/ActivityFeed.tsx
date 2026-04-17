@@ -35,7 +35,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
       </div>
       {items.length === 0 ? (
         <p className="px-5 py-8 text-center text-base text-[var(--muted)] sm:px-6 sm:text-sm">
-          No activity yet. Connect Refyndra and your stores — updates will show up here.
+          No activity yet. Connect Gmail in Quick start and run a scan — updates will show here as we detect them.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--border)]/50">

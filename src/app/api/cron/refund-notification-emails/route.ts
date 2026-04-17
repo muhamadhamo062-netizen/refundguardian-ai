@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { mergeFromNotificationData, sendRefundSuccessEmail } from '@/lib/email/sendRefundSuccessEmail';
+import {
+  refundNotificationNeedsEmail,
+  trySendRefundSuccessNotificationEmail,
+  type RefundSuccessNotifRow,
+} from '@/lib/email/processRefundSuccessNotification';
 import { createServiceRoleClient } from '@/lib/supabase/admin';
 
+/** Backup sender when `/api/webhooks/refund-notification` is not wired yet. */
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -15,18 +20,6 @@ function authorize(request: Request): boolean {
   const auth = request.headers.get('authorization');
   const bearer = auth?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
   return !!bearer && bearer === expected;
-}
-
-type NotifRow = {
-  id: string;
-  user_id: string;
-  data: Record<string, unknown> | null;
-};
-
-function needsEmail(data: Record<string, unknown> | null): boolean {
-  if (!data) return true;
-  const sent = data.email_sent;
-  return sent !== true && sent !== 'true';
 }
 
 export async function GET(request: Request) {
@@ -63,44 +56,19 @@ async function handle(request: Request) {
   let skipped = 0;
   const errors: string[] = [];
 
-  for (const n of (rows ?? []) as NotifRow[]) {
-    if (!needsEmail(n.data)) {
+  for (const n of (rows ?? []) as RefundSuccessNotifRow[]) {
+    if (!refundNotificationNeedsEmail(n.data)) {
       skipped += 1;
       continue;
     }
 
-    const { data: profile } = await admin.from('users').select('email').eq('id', n.user_id).maybeSingle();
-    const email = typeof profile?.email === 'string' ? profile.email.trim() : '';
-    if (!email) {
-      errors.push(`no email for user ${n.user_id}`);
-      skipped += 1;
-      continue;
-    }
-
-    const merge = mergeFromNotificationData(n.data);
-    if (!merge) {
-      errors.push(`bad data for notification ${n.id}`);
-      skipped += 1;
-      continue;
-    }
-
-    const result = await sendRefundSuccessEmail({ to: email, merge });
-    if (!result.ok) {
-      console.warn('[cron/refund-notification-emails]', n.id, result.error);
-      errors.push(result.error);
-      continue;
-    }
-
-    const nextData = {
-      ...(n.data ?? {}),
-      email_sent: true,
-      email_sent_at: new Date().toISOString(),
-    };
-    const { error: upErr } = await admin.from('notifications').update({ data: nextData }).eq('id', n.id);
-    if (upErr) {
-      errors.push(upErr.message);
-    } else {
+    const r = await trySendRefundSuccessNotificationEmail(admin, n);
+    if (r.outcome === 'sent') {
       sent += 1;
+    } else if (r.outcome === 'skipped') {
+      skipped += 1;
+    } else if (r.detail) {
+      errors.push(r.detail);
     }
   }
 

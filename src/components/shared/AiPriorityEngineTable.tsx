@@ -3,98 +3,24 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { PlatformOrderIcon } from '@/components/dashboard/PlatformOrderIcon';
+import type { RefundPlatform } from '@/lib/refundPriorityEngine';
+import {
+  AI_PRIORITY_ROWS as ROWS,
+  DEFAULT_SUPPORT_TO,
+  type PlatformKey,
+  type IssueKey,
+  type SelectionState,
+  emptyAiPrioritySelection as emptySelection,
+  aiPriorityStorageKey as storageKey,
+} from '@/lib/ai/aiPriorityEngineConfig';
 
-type PlatformKey = 'amazon' | 'uber_eats' | 'uber_rides' | 'doordash';
-
-type IssueKey =
-  | 'late_delivery_auto'
-  | 'trip_delay_auto'
-  | 'missing_item'
-  | 'cold_food'
-  | 'charged_incorrectly'
-  | 'damaged_item'
-  | 'trip_issue'
-  | 'driver_route_issue';
-
-type RowSpec = {
-  key: PlatformKey;
-  label: string;
-  auto: { title: string; badge: string; issueKey: IssueKey };
-  manual: Array<{ title: string; issueKey: IssueKey }>;
-};
-
-/** Suggested merchant inboxes (Uber/DoorDash). Amazon varies — user should enter a valid address. */
-const DEFAULT_SUPPORT_TO: Record<PlatformKey, string> = {
-  amazon: '',
-  uber_eats: 'support@uber.com',
-  uber_rides: 'support@uber.com',
-  doordash: 'help@doordash.com',
-};
-
-const ROWS: RowSpec[] = [
-  {
-    key: 'amazon',
-    label: 'Amazon',
-    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
-    manual: [
-      { title: 'Missing item', issueKey: 'missing_item' },
-      { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
-      { title: 'Damaged item', issueKey: 'damaged_item' },
-    ],
-  },
-  {
-    key: 'uber_eats',
-    label: 'Uber Eats',
-    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
-    manual: [
-      { title: 'Missing item', issueKey: 'missing_item' },
-      { title: 'Cold food', issueKey: 'cold_food' },
-      { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
-    ],
-  },
-  {
-    key: 'uber_rides',
-    label: 'Uber Rides',
-    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'trip_delay_auto' },
-    manual: [
-      { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
-      { title: 'Trip issue', issueKey: 'trip_issue' },
-      { title: 'Driver route issue', issueKey: 'driver_route_issue' },
-    ],
-  },
-  {
-    key: 'doordash',
-    label: 'DoorDash',
-    auto: { title: 'Standard monitoring', badge: '⭐', issueKey: 'late_delivery_auto' },
-    manual: [
-      { title: 'Missing item', issueKey: 'missing_item' },
-      { title: 'Cold food', issueKey: 'cold_food' },
-      { title: 'Charged incorrectly', issueKey: 'charged_incorrectly' },
-    ],
-  },
-];
-
-type SelectionState = Record<PlatformKey, Partial<Record<IssueKey, boolean>>>;
 type ComplaintStatus = 'idle' | 'generating' | 'generated' | 'failed';
 type ComplaintState = {
   status: ComplaintStatus;
   complaint: string;
   tone?: string;
 };
-
-function emptySelection(): SelectionState {
-  return {
-    amazon: {},
-    uber_eats: {},
-    uber_rides: {},
-    doordash: {},
-  };
-}
-
-/** Per-user preferences; only meaningful when signed in (dashboard — not on public landing). */
-function storageKey(userId: string | null): string {
-  return userId ? `rgAiPriority_v1_${userId}` : `rgAiPriority_v1_anon`;
-}
 
 function Spinner() {
   return (
@@ -105,9 +31,35 @@ function Spinner() {
   );
 }
 
-export function AiPriorityEngineTable({ className = '' }: { className?: string }) {
+function AutoPilotGoldStars({ textSizeClass = 'text-[15px]' }: { textSizeClass?: string }) {
+  return (
+    <span className={`inline-flex gap-0.5 leading-none tracking-tight ${textSizeClass}`} aria-hidden title="Auto-Pilot">
+      {[0, 1].map((i) => (
+        <span
+          key={i}
+          className="inline-block text-amber-300 [filter:drop-shadow(0_0_8px_rgba(251,191,36,0.85))]"
+          style={{ textShadow: '0 0 14px rgba(253, 224, 71, 0.65)' }}
+        >
+          ⭐
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function AiPriorityEngineTable({
+  className = '',
+  commandCenter = false,
+  slimDashboard = false,
+}: {
+  className?: string;
+  /** Hides long onboarding copy; tighter actions (dashboard command center). */
+  commandCenter?: boolean;
+  /** Single slim table: one row per platform; Send Auto-Draft; gold stars on auto. */
+  slimDashboard?: boolean;
+}) {
   const [userId, setUserId] = useState<string | null>(null);
-  const [sel, setSel] = useState<SelectionState>(emptySelection);
+  const [sel, setSel] = useState<SelectionState>(() => emptySelection());
   const [loadingUser, setLoadingUser] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draftOpen, setDraftOpen] = useState<{ platform: PlatformKey } | null>(null);
@@ -118,8 +70,6 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
   const [gmailConnectHref, setGmailConnectHref] = useState('/login');
   const [toast, setToast] = useState<string | null>(null);
-  /** null = loading; false = template-only; true = AI-assisted drafts */
-  const [aiDraftingEnabled, setAiDraftingEnabled] = useState<boolean | null>(null);
   const [complaints, setComplaints] = useState<Record<PlatformKey, ComplaintState>>({
     amazon: { status: 'idle', complaint: '' },
     uber_eats: { status: 'idle', complaint: '' },
@@ -127,20 +77,11 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     doordash: { status: 'idle', complaint: '' },
   });
 
-  const draftButtonLabel = useMemo(
-    () => (aiDraftingEnabled === false ? 'Use guided template' : 'Draft message'),
-    [aiDraftingEnabled]
-  );
-
-  const refreshAiStatus = useCallback(async () => {
-    try {
-      const r = await fetch('/api/ai/status', { cache: 'no-store' });
-      const d = (await r.json()) as { ok?: boolean; aiDraftingEnabled?: boolean };
-      setAiDraftingEnabled(d.aiDraftingEnabled === true);
-    } catch {
-      setAiDraftingEnabled(false);
-    }
-  }, []);
+  const draftButtonLabel = slimDashboard
+    ? 'Send Auto-Draft'
+    : commandCenter
+      ? 'Draft'
+      : 'Draft message';
 
   const refreshGmailStatus = useCallback(async () => {
     if (!userId) {
@@ -151,13 +92,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      setGmailConnected(false);
-      return;
+    const headers: HeadersInit = {};
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
     }
     try {
       const r = await fetch('/api/user/gmail-imap', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        credentials: 'include',
+        headers,
       });
       const d = (await r.json()) as { ok?: boolean; connected?: boolean };
       setGmailConnected(!!d?.connected);
@@ -167,15 +109,11 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   }, [userId]);
 
   useEffect(() => {
-    void refreshAiStatus();
-  }, [refreshAiStatus]);
-
-  useEffect(() => {
     const supabase = createClient();
     void supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
       setLoadingUser(false);
-      setGmailConnectHref(user ? '/dashboard#gmail-connection' : '/login');
+      setGmailConnectHref(user ? '/dashboard#gmail-engine' : '/login');
     });
   }, []);
 
@@ -186,12 +124,10 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
   useEffect(() => {
     const onFocus = () => {
       void refreshGmailStatus();
-      void refreshAiStatus();
     };
     const onVis = () => {
       if (document.visibilityState === 'visible') {
         void refreshGmailStatus();
-        void refreshAiStatus();
       }
     };
     window.addEventListener('focus', onFocus);
@@ -200,7 +136,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [refreshAiStatus, refreshGmailStatus]);
+  }, [refreshGmailStatus]);
 
   useEffect(() => {
     if (!draftOpen) return;
@@ -321,9 +257,18 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
       void refreshGmailStatus();
 
       try {
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
         const res = await fetch('/api/ai/draft-compensation', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          headers,
           body: JSON.stringify({ platform, manualIssues: selectedKeys }),
         });
         const body = (await res.json().catch(() => ({}))) as {
@@ -341,11 +286,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             ...cur,
             [platform]: { ...cur[platform], status: 'failed', complaint: fallback },
           }));
-          setToast(
-            aiDraftingEnabled === false
-              ? 'Guided template only — smart drafting can be enabled for your account by your team.'
-              : body.error || 'Could not generate a draft. Showing a simple template instead.'
-          );
+          setToast(body.error || 'Could not generate a draft. Showing a simple template instead.');
           window.setTimeout(() => setToast(null), 4500);
           return fallback;
         }
@@ -369,11 +310,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           [platform]: { ...cur[platform], status: 'failed', complaint: fallback },
         }));
         setToast(
-          aiDraftingEnabled === false
-            ? 'Using a simple template — smart drafting isn’t enabled on this account yet.'
-            : e instanceof Error
-              ? e.message
-              : 'Draft request failed. Showing template instead.'
+          e instanceof Error ? e.message : 'Draft request failed. Showing template instead.'
         );
         window.setTimeout(() => setToast(null), 4500);
         return fallback;
@@ -381,7 +318,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
         setDraftLoading(false);
       }
     },
-    [aiDraftingEnabled, refreshGmailStatus, sel]
+    [refreshGmailStatus, sel]
   );
 
   const copyAiComplaint = useCallback(
@@ -433,12 +370,6 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) {
-      setToast('Please log in to send email.');
-      window.setTimeout(() => setToast(null), 3000);
-      return;
-    }
     const trimmedTo = toEmail.trim();
     if (!trimmedTo && draftOpen.platform === 'amazon') {
       setToast('Enter a recipient email for Amazon (or use in-app help).');
@@ -447,12 +378,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     }
     setSending(true);
     try {
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
       const res = await fetch('/api/ai/send-compensation-draft', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers,
         body: JSON.stringify({
           platform: draftOpen.platform,
           draft: draftText,
@@ -493,50 +426,63 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
     }
     return (
       <span className="text-base text-zinc-200 sm:text-xs sm:text-zinc-400">
-        {userId ? 'Saved to your account (this browser)' : 'Log in to save per account'}
+        {userId ? 'Selections saved on this device' : 'Sign in to sync preferences'}
       </span>
     );
   }, [loadingUser, userId]);
 
   return (
     <section
-      className={`rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--card)] via-[var(--card)] to-[#0a0c10] shadow-2xl shadow-black/30 ${className}`}
+      className={
+        slimDashboard
+          ? `rounded-xl border border-white/12 bg-zinc-950/50 shadow-[0_8px_40px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm ${className}`
+          : `rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--card)] via-[var(--card)] to-[#0a0c10] shadow-2xl shadow-black/30 ${className}`
+      }
     >
-      <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80 sm:text-[10px]">
-            Smart savings
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-white sm:text-xl">
-            Standard monitoring &amp; AI Auto-Pilot
-          </h2>
-          <p className="mt-1 text-base text-[var(--muted)] sm:text-xs">
-            {aiDraftingEnabled === false ? (
-              <>
-                <strong className="font-medium text-zinc-300">Standard monitoring</strong> watches delays for you. Add
-                specific issues below, then edit a simple template — smarter drafting can be turned on by your team.
-              </>
-            ) : aiDraftingEnabled === true ? (
-              <>
-                <strong className="font-medium text-zinc-300">Standard monitoring</strong> tracks timing issues. Add any
-                extra issues — Refyndra can draft a clear message; the store still decides refunds or credits.
-              </>
-            ) : (
-              <>Checking your tools…</>
-            )}
-          </p>
+      {slimDashboard ? (
+        <div className="flex flex-col gap-2 border-b border-emerald-500/20 bg-emerald-950/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400/95 sm:text-[10px]">
+              Compact AI engine
+            </p>
+            <p className="mt-1 text-base leading-relaxed text-zinc-200 sm:text-xs sm:text-zinc-400">
+              Auto-Pilot watches delivery timing — no action needed. Select a manual issue to unlock{' '}
+              <span className="font-semibold text-white">Send Auto-Draft</span> with your order details pre-filled.
+            </p>
+          </div>
+          <div className="shrink-0 text-base sm:text-xs">{headerRight}</div>
         </div>
-        <div className="shrink-0">{headerRight}</div>
-      </div>
-
-      {aiDraftingEnabled === false ? (
-        <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-3 text-base leading-relaxed text-amber-50 sm:px-6 sm:text-[11px] sm:text-amber-100">
-          <strong className="font-semibold text-amber-50">Templates only for now.</strong> Your team can enable
-          AI-written messages for all supported stores. Sending still happens from <strong className="font-medium">your</strong>{' '}
-          Gmail when connected.
+      ) : (
+        <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80 sm:text-[10px]">
+              {commandCenter ? 'AI priority engine' : 'Savings tools'}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold text-white sm:text-xl">
+              {commandCenter ? 'Manual & automatic issues' : 'Priority engine & drafts'}
+            </h2>
+            <p className="mt-1 text-base text-[var(--muted)] sm:text-xs">
+              {commandCenter ? (
+                <>
+                  <strong className="font-medium text-zinc-300">Late delivery</strong> and{' '}
+                  <strong className="font-medium text-zinc-300">trip delays</strong> are monitored automatically. Select
+                  additional issues below, then <strong className="font-medium text-zinc-300">Approve</strong> or{' '}
+                  <strong className="font-medium text-zinc-300">Draft</strong> to move forward.
+                </>
+              ) : (
+                <>
+                  <strong className="font-medium text-zinc-300">Standard monitoring</strong> tracks timing signals from
+                  synced orders. Add optional issues — Refyndra can draft a firm, factual message you edit before
+                  anything is sent. Stores always decide refunds or credits.
+                </>
+              )}
+            </p>
+          </div>
+          <div className="shrink-0">{headerRight}</div>
         </div>
-      ) : null}
+      )}
 
+      {!slimDashboard && !commandCenter ? (
       <div className="border-b border-[var(--border)] bg-white/[0.02] px-4 py-3 sm:px-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300/90 sm:text-[10px]">Smart flow</p>
         <ol className="mt-2 grid gap-2 text-base font-medium leading-snug text-zinc-200 sm:grid-cols-2 sm:text-[11px] sm:font-normal sm:text-zinc-300 lg:grid-cols-4">
@@ -575,11 +521,8 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             <span className="shrink-0 font-semibold text-emerald-400">3</span>
             <span>
               Tap <strong className="font-medium text-white">Draft message</strong>
-              {aiDraftingEnabled === false
-                ? ' — you fill in a simple template yourself.'
-                : aiDraftingEnabled === true
-                  ? ' — Refyndra drafts a clear, store-specific message you can edit. Not a guarantee of payment.'
-                  : ' — …'}
+              {' — '}
+              Refyndra drafts a clear, store-specific message you can edit. Not a guarantee of payment.
             </span>
           </li>
           <li className="flex gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)]/50 px-2 py-2">
@@ -595,20 +538,162 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           </li>
         </ol>
         <p className="mt-3 text-sm leading-relaxed text-zinc-300 sm:text-[10px] sm:text-zinc-500">
-          {aiDraftingEnabled === false ? (
-            <>
-              Only <strong className="text-zinc-400">you</strong> send the final message for now. Refyndra never collects
-              money from stores for you.
-            </>
-          ) : (
-            <>
-              Refyndra never collects money from stores for you. Sending a message starts their process — credits or
-              refunds follow their rules.
-            </>
-          )}
+          Only <strong className="text-zinc-400">you</strong> send the final message. Refyndra never collects money from
+          stores for you — credits or refunds follow each merchant&apos;s rules.
         </p>
       </div>
+      ) : null}
 
+      {slimDashboard ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 p-3 md:hidden">
+            {ROWS.map((row) => {
+              const manualCount = selectedManualCount(row.key);
+              const hasManual = manualCount > 0;
+              const iconPlat = row.key as unknown as RefundPlatform;
+              return (
+                <article
+                  key={row.key}
+                  className="rounded-2xl border border-white/15 bg-white/[0.06] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl"
+                >
+                  <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+                    <PlatformOrderIcon platform={iconPlat} size="compact" />
+                    <span className="text-lg font-bold text-white sm:text-base">{row.label}</span>
+                  </div>
+
+                  <div className="mt-4 space-y-5">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Auto-Pilot</p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        <AutoPilotGoldStars textSizeClass="text-lg" />
+                        <p className="text-base font-medium leading-snug text-emerald-100">{row.auto.title}</p>
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full min-h-[48px] rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100"
+                          title="Monitored automatically — no action required."
+                        >
+                          Handled automatically
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">Manual</p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        {row.manual.map((m) => (
+                          <label
+                            key={m.issueKey}
+                            className="flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-950/60 px-3 py-2.5 text-base text-zinc-100 active:bg-white/[0.06]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(sel[row.key]?.[m.issueKey])}
+                              onChange={(e) => toggle(row.key, m.issueKey, e.target.checked)}
+                              className="h-5 w-5 shrink-0 accent-emerald-400"
+                            />
+                            {m.title}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      {hasManual ? (
+                        <button
+                          type="button"
+                          onClick={() => void openDraft(row.key)}
+                          className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-3 text-base font-bold text-white shadow-[0_0_22px_rgba(139,92,246,0.45)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-violet-400/50 active:scale-[0.98] touch-manipulation"
+                        >
+                          {draftButtonLabel}
+                        </button>
+                      ) : (
+                        <p className="text-center text-base text-zinc-500">Select at least one issue above</p>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto p-2 md:block sm:p-3">
+            <table className="w-full min-w-[820px] border-collapse text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/[0.03] text-[10px] uppercase tracking-wider text-zinc-500">
+                  <th className="px-2 py-2 font-semibold">Platform</th>
+                  <th className="px-2 py-2 font-semibold">Auto-Pilot</th>
+                  <th className="px-2 py-2 font-semibold">Manual</th>
+                  <th className="px-2 py-2 text-right font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ROWS.map((row) => {
+                  const manualCount = selectedManualCount(row.key);
+                  const hasManual = manualCount > 0;
+                  const iconPlat = row.key as unknown as RefundPlatform;
+                  return (
+                    <tr key={row.key} className="border-b border-white/[0.06] last:border-0">
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex items-center gap-2">
+                          <PlatformOrderIcon platform={iconPlat} size="compact" />
+                          <span className="font-semibold text-zinc-100">{row.label}</span>
+                        </div>
+                      </td>
+                      <td className="max-w-[200px] px-2 py-2 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <AutoPilotGoldStars />
+                          <span className="font-medium text-emerald-200/95">{row.auto.title}</span>
+                          <button
+                            type="button"
+                            disabled
+                            className="w-fit rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-100/90 opacity-90"
+                            title="Monitored automatically — no action required."
+                          >
+                            Handled automatically
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex flex-wrap gap-1">
+                          {row.manual.map((m) => (
+                            <label
+                              key={m.issueKey}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded border border-zinc-700/80 bg-zinc-950/60 px-1.5 py-0.5 text-[10px] text-zinc-300 hover:bg-white/[0.04]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={Boolean(sel[row.key]?.[m.issueKey])}
+                                onChange={(e) => toggle(row.key, m.issueKey, e.target.checked)}
+                                className="h-3 w-3 accent-emerald-400"
+                              />
+                              {m.title}
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-top text-right">
+                        {hasManual ? (
+                          <button
+                            type="button"
+                            onClick={() => void openDraft(row.key)}
+                            className="inline-flex min-h-[36px] min-w-[7.5rem] items-center justify-center rounded-lg bg-gradient-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-3 py-1.5 text-[10px] font-bold text-white shadow-[0_0_22px_rgba(139,92,246,0.45)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-violet-400/50 active:scale-[0.98]"
+                          >
+                            {draftButtonLabel}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-zinc-600">Select an issue</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <>
       {/* Mobile: card layout (no horizontal scroll) */}
       <div className="grid gap-4 p-4 sm:p-6 md:hidden">
         {ROWS.map((row) => {
@@ -630,23 +715,22 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                   type="button"
                   disabled
                   className="shrink-0 inline-flex min-h-[40px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-sm font-bold text-emerald-50 opacity-90 sm:min-h-[34px] sm:text-[11px] sm:font-semibold sm:text-emerald-100 sm:opacity-85"
-                  title="Standard monitoring is active from your connected activity."
+                  title="AI monitors timing signals automatically — no action required."
                 >
-                  Standard monitoring
+                  Handled automatically
                 </button>
               </div>
 
               <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-300" aria-hidden>
-                    ✓
-                  </span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <AutoPilotGoldStars />
                   <span className="text-base font-bold text-emerald-50 sm:text-[12px] sm:font-semibold sm:text-emerald-100">
-                    {row.auto.title} {row.auto.badge}
+                    {row.auto.title}
+                    {row.auto.badge ? ` ${row.auto.badge}` : ''}
                   </span>
                 </div>
                 <p className="mt-1 text-base font-medium text-emerald-100 sm:text-[11px] sm:font-normal sm:text-emerald-200/70">
-                  Detected from extension + timestamps.
+                  Handled automatically using your synced orders.
                 </p>
               </div>
 
@@ -707,13 +791,15 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                   >
                     {draftButtonLabel}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyAiComplaint(row.key)}
-                    className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-base font-bold text-emerald-100 hover:bg-emerald-500/15 sm:min-h-[40px] sm:text-[12px] sm:font-semibold"
-                  >
-                    Copy AI Complaint
-                  </button>
+                  {!commandCenter ? (
+                    <button
+                      type="button"
+                      onClick={() => void copyAiComplaint(row.key)}
+                      className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-base font-bold text-emerald-100 hover:bg-emerald-500/15 sm:min-h-[40px] sm:text-[12px] sm:font-semibold"
+                    >
+                      Copy AI Complaint
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -730,7 +816,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                 Platform
               </th>
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
-                Standard monitoring
+                Auto-Pilot
               </th>
               <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] sm:px-6">
                 Additional issues (optional)
@@ -753,17 +839,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
 
                   <td className="px-4 py-4 sm:px-6">
                     <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-emerald-300" aria-hidden>
-                          ✓
-                        </span>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <AutoPilotGoldStars textSizeClass="text-[14px]" />
                         <span className="font-semibold text-emerald-100">
-                          {row.auto.title} {row.auto.badge}
+                          {row.auto.title}
+                          {row.auto.badge ? ` ${row.auto.badge}` : ''}
                         </span>
                       </div>
-                      <p className="mt-1 text-[11px] text-emerald-200/70">
-                        Detected from connected data.
-                      </p>
+                      <p className="mt-1 text-[11px] text-emerald-200/70">Handled automatically</p>
                     </div>
                   </td>
 
@@ -809,10 +892,10 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                       <button
                         type="button"
                         disabled
-                        className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 opacity-80"
-                        title="Standard monitoring is active from your connected activity."
+                        className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 opacity-90"
+                        title="AI monitors timing signals automatically — no action required."
                       >
-                        Standard monitoring
+                        Handled automatically
                       </button>
 
                       {hasManual ? (
@@ -823,7 +906,7 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                             disabled={saving}
                             className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg bg-[var(--accent)] px-3 text-[11px] font-semibold text-[var(--background)] disabled:opacity-60"
                           >
-                            {saving ? 'Saving…' : 'Approve compensation'}
+                            {saving ? 'Saving…' : commandCenter ? 'Approve' : 'Approve compensation'}
                           </button>
                           <button
                             type="button"
@@ -832,13 +915,15 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                           >
                             {draftButtonLabel}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => void copyAiComplaint(row.key)}
-                            className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-500/15"
-                          >
-                            Copy AI Complaint
-                          </button>
+                          {!commandCenter ? (
+                            <button
+                              type="button"
+                              onClick={() => void copyAiComplaint(row.key)}
+                              className="inline-flex min-h-[36px] w-full items-center justify-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-500/15"
+                            >
+                              Copy AI Complaint
+                            </button>
+                          ) : null}
                         </>
                       ) : null}
                     </div>
@@ -849,6 +934,8 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
           </tbody>
         </table>
       </div>
+        </>
+      )}
 
       {toast ? (
         <div className="border-t border-[var(--border)] px-4 py-3 text-base font-medium text-emerald-100 sm:px-6 sm:text-xs sm:font-normal sm:text-emerald-200" role="status">
@@ -866,24 +953,14 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3 sm:px-6">
               <div className="min-w-0 pr-2">
                 <p className="text-sm font-semibold uppercase tracking-wider text-zinc-300 sm:text-xs sm:text-zinc-400">
-                  {aiDraftingEnabled === false ? 'Guided template' : 'Smart draft'}
+                  {slimDashboard ? 'Smart draft' : 'Draft'}
                 </p>
                 <p className="text-lg font-semibold text-white sm:text-sm sm:font-medium">
-                  {aiDraftingEnabled === false
-                    ? 'You edit the message'
-                    : 'Polished message — send or copy'}
+                  {slimDashboard ? 'Review, then send from your Gmail' : 'Polished message — send or copy'}
                 </p>
                 <p className="mt-0.5 text-base text-zinc-300 sm:text-[11px] sm:text-zinc-500">
-                  {aiDraftingEnabled === false ? (
-                    <>
-                      Smarter drafting can be enabled for your Refyndra account. Stores still decide every outcome.
-                    </>
-                  ) : (
-                    <>
-                      Approval of any refund or credit is up to the store. We help you ask clearly — we don’t guarantee
-                      an outcome.
-                    </>
-                  )}
+                  Refunds and credits are always at the merchant&apos;s discretion. Refyndra helps you ask clearly — we
+                  don&apos;t guarantee an outcome.
                 </p>
               </div>
               <button
@@ -897,11 +974,11 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
               {gmailConnected === false ? (
                 <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-base text-amber-50 sm:text-xs sm:text-amber-100">
-                  Connect Gmail (App Password) in{' '}
+                  Add Gmail with an App Password under{' '}
                   <Link href={gmailConnectHref} className="font-medium text-amber-50 underline underline-offset-2">
-                    dashboard setup
+                    Primary action
                   </Link>{' '}
-                  to send from your address. You can still copy the text below — works on mobile and desktop.
+                  to send from your own address. You can still copy the message below on any device.
                 </p>
               ) : null}
               <div>
@@ -942,9 +1019,13 @@ export function AiPriorityEngineTable({ className = '' }: { className?: string }
                     gmailConnected === false ||
                     (draftOpen?.platform === 'amazon' && !toEmail.trim())
                   }
-                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-base font-semibold text-[var(--background)] disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm"
+                  className={
+                    slimDashboard
+                      ? 'inline-flex min-h-[48px] w-full items-center justify-center rounded-lg bg-gradient-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-4 text-base font-semibold text-white shadow-[0_0_24px_rgba(139,92,246,0.4)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-violet-400/45 disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm'
+                      : 'inline-flex min-h-[48px] w-full items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-base font-semibold text-[var(--background)] disabled:opacity-50 sm:min-h-[40px] sm:w-auto sm:text-sm'
+                  }
                 >
-                  {sending ? 'Sending…' : 'Send from my Gmail'}
+                  {sending ? 'Sending…' : slimDashboard ? 'Send draft' : 'Send from my Gmail'}
                 </button>
                 <button
                   type="button"

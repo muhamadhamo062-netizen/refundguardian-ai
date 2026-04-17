@@ -1,4 +1,4 @@
--- Audit trail when the Chrome extension notifies the app after a successful order batch POST.
+-- Legacy audit table for removed server ingest path (dropped in 021_drop_extension_sync_events.sql).
 -- RLS: users see and insert only their own rows.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.extension_sync_events (
 CREATE INDEX IF NOT EXISTS idx_extension_sync_user_created
   ON public.extension_sync_events(user_id, created_at DESC);
 
-COMMENT ON TABLE public.extension_sync_events IS 'Extension-originated sync notifications (e.g. after POST /api/orders batch).';
+COMMENT ON TABLE public.extension_sync_events IS 'Deprecated ingest audit (unused by current app).';
 
 ALTER TABLE public.extension_sync_events ENABLE ROW LEVEL SECURITY;
 

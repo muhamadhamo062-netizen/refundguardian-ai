@@ -1,56 +1,12 @@
 -- =============================================================================
--- Refyndra — one-shot apply for migrations 014, 015, 017 (Supabase SQL Editor)
--- Run when: extension_sync_events missing, imap_app_credentials missing, or IMAP scan columns missing.
+-- Refyndra — one-shot apply for IMAP (migrations 015, 017) + drop legacy ingest table
+-- Run when: imap_app_credentials missing, IMAP scan columns missing, or old extension_sync_events exists.
 -- If a step errors with "already exists", skip that section or fix manually.
 -- =============================================================================
 
--- --- 014 extension_sync_events (from migrations/014_extension_sync_events.sql) ---
+DROP TABLE IF EXISTS public.extension_sync_events CASCADE;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-CREATE TABLE IF NOT EXISTS public.extension_sync_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL,
-  order_count INTEGER NOT NULL DEFAULT 0 CHECK (order_count >= 0),
-  meta JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_extension_sync_user_created
-  ON public.extension_sync_events(user_id, created_at DESC);
-
-COMMENT ON TABLE public.extension_sync_events IS 'Extension-originated sync notifications (e.g. after POST /api/orders batch).';
-
-ALTER TABLE public.extension_sync_events ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'extension_sync_events'
-      AND policyname = 'Users read own extension sync events'
-  ) THEN
-    CREATE POLICY "Users read own extension sync events"
-      ON public.extension_sync_events FOR SELECT
-      USING (auth.uid() = user_id);
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'extension_sync_events'
-      AND policyname = 'Users insert own extension sync events'
-  ) THEN
-    CREATE POLICY "Users insert own extension sync events"
-      ON public.extension_sync_events FOR INSERT
-      WITH CHECK (auth.uid() = user_id);
-  END IF;
-END $$;
-
-GRANT ALL ON public.extension_sync_events TO authenticated;
 
 -- --- 015 imap_app_credentials (from migrations/015_imap_app_credentials.sql) ---
 
@@ -122,3 +78,23 @@ ALTER TABLE public.imap_app_credentials
 
 ALTER TABLE public.imap_app_credentials
   ADD COLUMN IF NOT EXISTS last_scan_error TEXT;
+
+-- --- 022 encrypted_app_password (if table existed without this column) ---
+
+ALTER TABLE public.imap_app_credentials
+  ADD COLUMN IF NOT EXISTS encrypted_app_password TEXT;
+
+UPDATE public.imap_app_credentials
+SET encrypted_app_password = ''
+WHERE encrypted_app_password IS NULL;
+
+ALTER TABLE public.imap_app_credentials
+  ALTER COLUMN encrypted_app_password SET NOT NULL;
+
+NOTIFY pgrst, 'reload schema';
+
+-- --- 023 gmail_address column (if 015 was never applied) ---
+ALTER TABLE public.imap_app_credentials
+  ADD COLUMN IF NOT EXISTS gmail_address TEXT;
+
+NOTIFY pgrst, 'reload schema';

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { createSupabaseClient } from '@/lib/supabase/api';
 import {
   generateHumanLikeComplaint,
   type ComplaintPlatform,
 } from '@/lib/ai/complaintGenerator';
+import { getOpenAiChatModel } from '@/lib/ai/openaiModel';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -91,6 +93,74 @@ function platformPlaybook(p: PlatformKey): string {
   }
 }
 
+function orderProviderForPlatform(p: PlatformKey): string {
+  if (p === 'uber_rides') return 'uber';
+  if (p === 'uber_eats') return 'uber_eats';
+  if (p === 'doordash') return 'doordash';
+  if (p === 'amazon') return 'amazon';
+  return 'other';
+}
+
+async function loadCustomerDraftContext(
+  req: Request,
+  platform: PlatformKey
+): Promise<{ displayName: string; orderContext: string }> {
+  const auth = req.headers.get('authorization');
+  const token = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!token) {
+    return { displayName: '', orderContext: '' };
+  }
+
+  const supabase = createSupabaseClient(token);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) {
+    return { displayName: '', orderContext: '' };
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('full_name, email')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const displayName =
+    (profile && typeof profile.full_name === 'string' && profile.full_name.trim()) ||
+    (typeof user.email === 'string' ? user.email.split('@')[0] : '') ||
+    '';
+
+  const provider = orderProviderForPlatform(platform);
+  const { data: orders, error: ordErr } = await supabase
+    .from('orders')
+    .select('order_id, order_date, merchant_name, order_value_cents, provider')
+    .eq('user_id', user.id)
+    .eq('provider', provider)
+    .order('order_date', { ascending: false })
+    .limit(3);
+
+  if (ordErr) {
+    return {
+      displayName,
+      orderContext: '',
+    };
+  }
+
+  const lines = (orders ?? [])
+    .map((o: { order_id?: string | null; order_date?: string | null; merchant_name?: string | null; order_value_cents?: number | null }) => {
+      const amt =
+        typeof o.order_value_cents === 'number' ? `$${(o.order_value_cents / 100).toFixed(2)}` : '—';
+      const d = o.order_date ? new Date(o.order_date).toLocaleDateString('en-US') : '—';
+      return `Order ${o.order_id ?? '—'} · ${d} · ${o.merchant_name ?? '—'} · ${amt}`;
+    })
+    .join(' | ');
+
+  return {
+    displayName,
+    orderContext: lines,
+  };
+}
+
 function issueLabel(i: ManualIssueKey): string {
   switch (i) {
     case 'missing_item':
@@ -112,7 +182,7 @@ function issueLabel(i: ManualIssueKey): string {
 
 export async function POST(req: Request) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const model = 'gpt-4o-mini';
+  const model = getOpenAiChatModel();
   if (!apiKey) {
     return NextResponse.json(
       { ok: false, error: 'AI drafting not configured (OPENAI_API_KEY missing)' },
@@ -141,11 +211,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    const { displayName, orderContext } = await loadCustomerDraftContext(req, platform);
     const response = await generateHumanLikeComplaint({
       platform: platform as ComplaintPlatform,
       issues: manualIssues.map(issueLabel),
       model,
-      context: `Generate a high-pressure complaint for ${platformLabel(platform)} with platform guidance: ${platformPlaybook(
+      customerDisplayName: displayName || undefined,
+      orderContext: orderContext || undefined,
+      context: `Generate an executive-level, merchant-facing dispute for ${platformLabel(platform)} (U.S. market). ${platformPlaybook(
         platform
       )}`,
     });

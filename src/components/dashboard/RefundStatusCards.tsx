@@ -107,7 +107,7 @@ export function RefundStatusCards({ rows, maxCards = 10 }: RefundStatusCardsProp
       <ul className="divide-y divide-[var(--border)]/60">
         {display.length === 0 ? (
           <li className="px-4 py-10 text-center text-base text-[var(--muted)] sm:px-6 sm:text-sm">
-            No refund activity yet. Connect Gmail or the extension — matches will appear here.
+            No refund activity yet. Connect Gmail in Quick start — matches will appear here after scans.
           </li>
         ) : (
           display.map((row) => (

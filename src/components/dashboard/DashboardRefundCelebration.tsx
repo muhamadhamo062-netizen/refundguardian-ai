@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { mergeFieldsFromNotificationData } from '@/lib/email/refundSuccessTemplates';
-import { isProSubscriber } from '@/lib/billing/plan';
-import type { UserBillingRow } from '@/lib/billing/plan';
 import { DEFAULT_SITE_ORIGIN } from '@/lib/siteUrl';
 import { isNotificationsTableMissingError } from '@/lib/supabase/dbErrors';
 
@@ -18,13 +16,12 @@ type NotifRow = {
 };
 
 /**
- * Next dashboard visit after an order moves to `refunded`: show celebration + upgrade CTA.
- * Email is sent by `/api/cron/refund-notification-emails` (Resend).
+ * Next dashboard visit after an order moves to refunded/recovered: show celebration (no paywall).
+ * Golden success email is sent from the server (Database Webhook → `/api/webhooks/refund-notification` + Resend); cron remains a backup.
  */
 export function DashboardRefundCelebration() {
   const [open, setOpen] = useState(false);
   const [row, setRow] = useState<NotifRow | null>(null);
-  const [isPro, setIsPro] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [notifFetch, setNotifFetch] = useState<'loading' | 'ready' | 'unavailable'>('loading');
 
@@ -46,15 +43,6 @@ export function DashboardRefundCelebration() {
         if (!session?.access_token) {
           setNotifFetch('ready');
           return;
-        }
-
-        const { data: profile } = await supabase
-          .from('users')
-          .select('plan, subscription_status')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        if (!cancelled && profile) {
-          setIsPro(isProSubscriber(profile as UserBillingRow));
         }
 
         const { data: n, error } = await supabase
@@ -141,47 +129,17 @@ export function DashboardRefundCelebration() {
             in your balance.
           </p>
           <p className="text-zinc-400">
-            We got you this one for free to show you the power of Refyndra AI. Your money shouldn&apos;t be lost as long
-            as Refyndra is watching your back.
+            Keep Gmail connected in Quick start so we can keep scanning receipts. Outcomes always depend on merchant
+            policies.
           </p>
-          {!isPro ? (
-            <>
-              <p className="font-medium text-zinc-200">Upgrade to Pro:</p>
-              <ul className="list-inside list-disc space-y-1 text-zinc-300">
-                <li>
-                  Monthly Pro: <strong>{merge.monthlyPriceDisplay}</strong> — so this subscription literally pays for
-                  itself!*
-                </li>
-                <li>
-                  Annual (best value): <strong>{merge.annualPriceDisplay}</strong> — Save 25%!
-                </li>
-              </ul>
-              <p className="text-xs text-zinc-500">
-                *Outcomes depend on merchant policies; not a guarantee of future refunds.
-              </p>
-            </>
-          ) : (
-            <p className="text-zinc-400">
-              You&apos;re on Pro — keep Refyndra connected for ongoing monitoring.
-            </p>
-          )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[var(--border)] px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
-          {!isPro ? (
-            <Link
-              href="/upgrade"
-              className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--background)]"
-            >
-              Upgrade to Pro
-            </Link>
-          ) : (
-            <Link
-              href="/dashboard/refund-history"
-              className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-100"
-            >
-              View refund history
-            </Link>
-          )}
+          <Link
+            href="/dashboard/refund-history"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-100"
+          >
+            View refund history
+          </Link>
           <button
             type="button"
             onClick={() => void onDismiss()}

@@ -15,13 +15,15 @@ export function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
 
     async function checkAuth() {
       const { data, error } = await supabase.auth.getSession();
-      if (error) console.error(error.message);
+      if (error && process.env.NODE_ENV === 'development') {
+        console.warn('[RedirectIfAuthed]', error.message);
+      }
 
       if (!alive) return;
 
       if (data.session) {
         // Avoid any chance of loops; only redirect away from auth pages.
-        if (pathname === '/login' || pathname === '/signup') {
+        if (pathname === '/login' || pathname === '/signup' || pathname === '/auth') {
           router.replace('/dashboard');
           return;
         }
